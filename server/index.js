@@ -4,6 +4,7 @@ const cors = require('cors');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
+const path = require('path');
 
 const menteeRoutes = require('./routes/mentee');
 const mentorRoutes = require('./routes/mentor');
@@ -39,10 +40,19 @@ app.use('/api/mentee', menteeRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api', aiRoutes);
 
-// Global error handler
+// ── Global error handler ──────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Global error:', err);
   res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
+// ── Serve React frontend (must come after API routes) ─────────────────────────
+// The vercel-build script compiles the client to client/dist before deployment.
+// In local dev the Vite dev server handles the frontend separately via npm run dev.
+const CLIENT_DIST = path.join(__dirname, '../client/dist');
+app.use(express.static(CLIENT_DIST));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(CLIENT_DIST, 'index.html'));
 });
 
 app.listen(PORT, () => {

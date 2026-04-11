@@ -8,7 +8,8 @@
     "server": "node server/index.js",
     "client": "cd client && npm run dev",
     "start": "node server/index.js",
-    "build": "cd client && npm run build"
+    "build": "cd client && npm run build",
+    "vercel-build": "cd client && npm install && npm run build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
