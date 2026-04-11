@@ -1,0 +1,26 @@
+{
+  "name": "career-compass",
+  "version": "1.0.0",
+  "description": "Career pathing tool for military veterans",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "predev": "lsof -ti:3001 | xargs kill -9 2>/dev/null || true",
+    "server": "node server/index.js",
+    "client": "cd client && npm run dev",
+    "start": "node server/index.js",
+    "build": "cd client && npm run build"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.37.0",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "mongoose": "^9.4.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

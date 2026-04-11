@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer utilities {
+  .print-hidden {
+    @apply print:hidden;
+  }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  nav, button, .ai-feedback-panel { display: none !important; }
+}

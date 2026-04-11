@@ -1,0 +1,64 @@
+{
+  "id": "test-mentee",
+  "name": "Test Mentee",
+  "email": "TUOWLS5@aol.com",
+  "createdAt": "2026-04-04T22:55:43.566Z",
+  "updatedAt": "2026-04-05T23:46:40.380Z",
+  "roles": [
+    {
+      "id": "a70672a1-c877-4978-b2c5-81a90e47d081",
+      "title": "S4 Logistics Officer, 1st BCT, managed LOGPAC operations for 500 personnel",
+      "organization": "Army",
+      "startYear": "2010",
+      "endYear": "2015",
+      "whatIDid": "Relayed equipment from base to external commands.",
+      "howIDidIt": "Collaborated with stakeholders and managed risk reduction.",
+      "impact": "Saved $4M",
+      "aiFeedback": {
+        "jargonFlags": [
+          {
+            "term": "Relayed equipment",
+            "explanation": "This is vague military terminology that doesn't clearly convey what type of equipment management or logistics operation was performed",
+            "suggestion": "Use specific terms like 'coordinated equipment transfers,' 'managed logistics operations,' or 'oversaw equipment distribution'"
+          },
+          {
+            "term": "base to external commands",
+            "explanation": "Military organizational structure that civilians won't understand - 'commands' refers to military units or organizations",
+            "suggestion": "Replace with 'from primary facility to remote locations' or 'between organizational units' or 'to partner organizations'"
+          }
+        ],
+        "missingHow": {
+          "detected": true,
+          "feedback": "The 'How' section is extremely vague. 'Collaborated with stakeholders and managed risk reduction' tells us nothing about your actual methods, processes, or leadership approach.",
+          "promptingQuestions": [
+            "What specific processes did you establish to coordinate these equipment transfers?",
+            "How did you prioritize competing demands and manage timelines across multiple locations?",
+            "What systems or tools did you use to track equipment and ensure accountability?"
+          ]
+        },
+        "missingImpact": {
+          "detected": true,
+          "feedback": "While you mention saving $4M, this lacks context and credibility. How was this calculated? Over what time period? What specific improvements drove these savings?",
+          "promptingQuestions": [
+            "How specifically did your work save $4M - was it through reduced transportation costs, eliminated redundancies, or prevented equipment loss?",
+            "Over what time period were these savings realized?",
+            "What percentage improvement did this represent compared to previous operations?"
+          ]
+        },
+        "overallStrength": "The entry demonstrates significant financial impact and shows awareness of stakeholder collaboration and risk management concepts that translate well to civilian roles.",
+        "priorityAction": "Completely rewrite the 'How' section with specific processes, methods, and management approaches that show your operational expertise beyond generic business buzzwords."
+      },
+      "lastAnalyzed": "2026-04-05T23:46:40.380Z"
+    }
+  ],
+  "passions": "",
+  "strengths": "",
+  "aspirations": "",
+  "tableStakes": "",
+  "tableStakesTags": [],
+  "generatedNarrative": "",
+  "narrativeGeneratedAt": null,
+  "themes": [],
+  "themesGeneratedAt": null,
+  "mentorComments": []
+}
