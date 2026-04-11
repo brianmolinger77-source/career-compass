@@ -72,7 +72,7 @@ export default function MentorDashboard() {
     setCreateError('')
     try {
       const result = await createMentee(newName, newEmail)
-      setCreatedUrl(result.url)
+      setCreatedUrl(`${window.location.origin}/mentee/${result.mentee.id}`)
       setMentees(prev => [result.mentee, ...prev])
     } catch (err) {
       setCreateError(err.message || 'Failed to create mentee')
