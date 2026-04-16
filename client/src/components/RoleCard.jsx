@@ -40,35 +40,48 @@ export default function RoleCard({
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analyzeError, setAnalyzeError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [hasEditedSinceAnalysis, setHasEditedSinceAnalysis] = useState(false)
   const debounceTimers = useRef({})
 
   function handleFieldChange(field, value) {
-    const updated = { ...localRole, [field]: value }
+    // If there's existing feedback and the user is editing, mark revisions as pending
+    const hadFeedback = !!localRole.aiFeedback
+    const patch = { [field]: value }
+    if (hadFeedback && !hasEditedSinceAnalysis) {
+      setHasEditedSinceAnalysis(true)
+      patch.revisedAfterFeedback = false
+    }
+    const updated = { ...localRole, ...patch }
     setLocalRole(updated)
 
     // Debounce autosave
     if (debounceTimers.current[field]) clearTimeout(debounceTimers.current[field])
     debounceTimers.current[field] = setTimeout(() => {
-      onUpdate(role.id, { [field]: value })
+      onUpdate(role.id, patch)
     }, 1500)
   }
 
   async function handleAnalyze() {
     setIsAnalyzing(true)
     setAnalyzeError(null)
+    const isRevision = hasEditedSinceAnalysis
     try {
       const result = await analyzeRole(
         menteeId,
         role.id,
         localRole.whatIDid,
         localRole.howIDidIt,
-        localRole.impact
+        localRole.impact,
+        isRevision
       )
+      const revisedAfterFeedback = isRevision
       setLocalRole(prev => ({
         ...prev,
         aiFeedback: result.feedback,
-        lastAnalyzed: new Date().toISOString()
+        lastAnalyzed: new Date().toISOString(),
+        revisedAfterFeedback
       }))
+      setHasEditedSinceAnalysis(false)
     } catch (err) {
       setAnalyzeError('Analysis unavailable right now — try again in a moment. Your content has been saved.')
     } finally {
@@ -85,8 +98,29 @@ export default function RoleCard({
     }
   }
 
+  // Revision status derived from local state
+  const revisionStatus = !localRole.aiFeedback
+    ? null
+    : localRole.revisedAfterFeedback
+      ? 'revised'
+      : 'pending'
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-4">
+      {/* Revision status indicator */}
+      {revisionStatus === 'pending' && (
+        <div className="flex items-center gap-2 no-print">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-400 flex-shrink-0" />
+          <span className="text-xs text-amber-700 font-medium">Feedback received — revisions pending</span>
+        </div>
+      )}
+      {revisionStatus === 'revised' && (
+        <div className="flex items-center gap-2 no-print">
+          <span className="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0" />
+          <span className="text-xs text-green-700 font-medium">Revised and re-analyzed</span>
+        </div>
+      )}
+
       {/* Card Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -211,7 +245,8 @@ export default function RoleCard({
             </>
           ) : (
             <>
-              <span>&#10024;</span> Analyze This Role
+              <span>&#10024;</span>
+              {localRole.aiFeedback ? "I've Revised This — Re-Analyze" : 'Analyze This Role'}
             </>
           )}
         </button>

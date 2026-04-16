@@ -3,16 +3,17 @@ const mongoose = require('mongoose');
 // ── Sub-schemas (no auto _id on nested docs) ─────────────────────────────────
 
 const roleSchema = new mongoose.Schema({
-  id:           { type: String },
-  title:        { type: String, default: '' },
-  organization: { type: String, default: '' },
-  startYear:    { type: String, default: '' },
-  endYear:      { type: String, default: '' },
-  whatIDid:     { type: String, default: '' },
-  howIDidIt:    { type: String, default: '' },
-  impact:       { type: String, default: '' },
-  aiFeedback:   { type: mongoose.Schema.Types.Mixed, default: null },
-  lastAnalyzed: { type: Date, default: null }
+  id:                   { type: String },
+  title:                { type: String, default: '' },
+  organization:         { type: String, default: '' },
+  startYear:            { type: String, default: '' },
+  endYear:              { type: String, default: '' },
+  whatIDid:             { type: String, default: '' },
+  howIDidIt:            { type: String, default: '' },
+  impact:               { type: String, default: '' },
+  aiFeedback:           { type: mongoose.Schema.Types.Mixed, default: null },
+  lastAnalyzed:         { type: Date, default: null },
+  revisedAfterFeedback: { type: Boolean, default: false }
 }, { _id: false });
 
 const commentSchema = new mongoose.Schema({
@@ -41,7 +42,9 @@ const menteeSchema = new mongoose.Schema({
   narrativeGeneratedAt: { type: Date, default: null },
   themes:               { type: [String], default: [] },
   themesGeneratedAt:    { type: Date, default: null },
-  mentorComments:       { type: [commentSchema], default: [] }
+  mentorComments:       { type: [commentSchema], default: [] },
+  careerThread:         { type: String, default: '' },
+  psaAnalysis:          { type: mongoose.Schema.Types.Mixed, default: null }
 }, {
   timestamps: false   // managed manually to stay consistent with existing ISO strings
 });

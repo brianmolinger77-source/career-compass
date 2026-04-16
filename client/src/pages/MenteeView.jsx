@@ -6,6 +6,7 @@ import VennDiagram from '../components/VennDiagram'
 import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirations'
 import TableStakes from '../components/TableStakes'
 import NarrativeCard from '../components/NarrativeCard'
+import PSAAnalysisPanel from '../components/PSAAnalysisPanel'
 import { SaveStatusIndicator, useSaveStatus } from '../utils/autosave'
 
 function calcCompletion(mentee) {
@@ -30,6 +31,9 @@ export default function MenteeView() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generateError, setGenerateError] = useState(null)
   const [narrativeMeta, setNarrativeMeta] = useState({ strength: '', refinement: '' })
+  const [careerThread, setCareerThread] = useState('')
+  const [showThreadPrompt, setShowThreadPrompt] = useState(false)
+  const [psaAnalysis, setPSAAnalysis] = useState(null)
   const { saveStatus, setSaving, setSaved, setError: setSaveError } = useSaveStatus()
 
   useEffect(() => {
@@ -40,6 +44,8 @@ export default function MenteeView() {
     try {
       const data = await getMentee(menteeId)
       setMentee(data)
+      setCareerThread(data.careerThread || '')
+      if (data.psaAnalysis) setPSAAnalysis(data.psaAnalysis)
     } catch (err) {
       if (err.message?.includes('not found') || err.message?.includes('404')) {
         setNotFound(true)
@@ -110,11 +116,17 @@ export default function MenteeView() {
     }
   }
 
-  async function handleGenerateNarrative() {
+  async function handleGenerateNarrative(skipThreadCheck = false) {
+    // If careerThread is empty, show prompt first
+    if (!skipThreadCheck && !careerThread.trim()) {
+      setShowThreadPrompt(true)
+      return
+    }
+    setShowThreadPrompt(false)
     setIsGenerating(true)
     setGenerateError(null)
     try {
-      const result = await generateNarrative(menteeId)
+      const result = await generateNarrative(menteeId, careerThread)
       setMentee(result.mentee)
       setNarrativeMeta({
         strength: result.narrativeStrength,
@@ -125,6 +137,11 @@ export default function MenteeView() {
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  function handlePSAAnalysisComplete(analysis, updatedMentee) {
+    setPSAAnalysis(analysis)
+    if (updatedMentee) setMentee(updatedMentee)
   }
 
   if (isLoading) {
@@ -157,12 +174,51 @@ export default function MenteeView() {
   const completion = calcCompletion(mentee)
   const hasEnoughRoles = roles.length >= 2
 
+  const CareerThreadField = () => (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-3 my-6">
+      <div>
+        <h3 className="text-base font-bold text-[#1F4E79]">The Thread That Runs Through Your Career</h3>
+        <div className="mt-2 bg-blue-50 border-l-4 border-[#1F4E79] pl-3 py-2 rounded-r text-xs text-gray-700 leading-relaxed">
+          Before generating your narrative, take a moment to reflect. Looking across all the roles you've held, what's the one thing that has consistently shown up — something you've been drawn to, relied on, or that others have counted on you for? Don't overthink it. One or two sentences is enough.
+        </div>
+      </div>
+      <textarea
+        value={careerThread}
+        onChange={e => setCareerThread(e.target.value)}
+        placeholder="Across all my roles, the one consistent thread has been..."
+        rows={3}
+        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
+      />
+    </div>
+  )
+
   const GenerateButton = () => (
-    <div className="flex flex-col items-center gap-3 my-6">
+    <div className="flex flex-col items-center gap-3 my-6 no-print">
+      {showThreadPrompt && !careerThread.trim() && (
+        <div className="w-full max-w-md bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-center space-y-3">
+          <p className="text-sm text-gray-700">
+            You can generate your story now, or take a moment to fill in the career thread above — it helps make the narrative sound more like you.
+          </p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => handleGenerateNarrative(true)}
+              className="text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors"
+            >
+              Generate Now
+            </button>
+            <button
+              onClick={() => setShowThreadPrompt(false)}
+              className="text-sm text-[#1F4E79] border border-[#1F4E79] hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
+            >
+              Add My Thread First
+            </button>
+          </div>
+        </div>
+      )}
       <button
-        onClick={handleGenerateNarrative}
+        onClick={() => handleGenerateNarrative(false)}
         disabled={isGenerating || !hasEnoughRoles}
-        className="bg-[#C65911] hover:bg-[#a34a0e] text-white font-bold text-base px-8 py-3.5 rounded-xl transition-colors disabled:opacity-60 flex items-center gap-3 shadow-md no-print"
+        className="bg-[#C65911] hover:bg-[#a34a0e] text-white font-bold text-base px-8 py-3.5 rounded-xl transition-colors disabled:opacity-60 flex items-center gap-3 shadow-md"
       >
         {isGenerating ? (
           <>
@@ -290,7 +346,12 @@ export default function MenteeView() {
               </button>
             </div>
 
-            {hasEnoughRoles && <GenerateButton />}
+            {hasEnoughRoles && (
+              <>
+                <CareerThreadField />
+                <GenerateButton />
+              </>
+            )}
           </section>
         )}
 
@@ -315,6 +376,7 @@ export default function MenteeView() {
             <PassionsStrengthsAspirations
               menteeData={mentee}
               onUpdate={handleUpdate}
+              onPSAAnalysisComplete={handlePSAAnalysisComplete}
               isMentorView={false}
             />
 
@@ -323,11 +385,22 @@ export default function MenteeView() {
               onUpdate={handleUpdate}
               isMentorView={false}
             />
+
+            {psaAnalysis && (
+              <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                <PSAAnalysisPanel psaAnalysis={psaAnalysis} isMentorView={false} />
+              </div>
+            )}
           </div>
         </section>
 
-        {/* Generate button at bottom of document */}
-        {roles.length > 0 && <GenerateButton />}
+        {/* Career thread + Generate button at bottom of document */}
+        {roles.length > 0 && (
+          <>
+            <CareerThreadField />
+            <GenerateButton />
+          </>
+        )}
 
         {/* Narrative */}
         {mentee.generatedNarrative && (

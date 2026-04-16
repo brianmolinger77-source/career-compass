@@ -8,6 +8,8 @@ import TableStakes from '../components/TableStakes'
 import NarrativeCard from '../components/NarrativeCard'
 import ThemesPanel from '../components/ThemesPanel'
 import MentorComment from '../components/MentorComment'
+import PSAAnalysisPanel from '../components/PSAAnalysisPanel'
+import { analyzePSA } from '../utils/api'
 import { SaveStatusIndicator, useSaveStatus } from '../utils/autosave'
 
 function calcCompletion(mentee) {
@@ -53,6 +55,8 @@ export default function MentorMenteeView() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generateError, setGenerateError] = useState(null)
   const [narrativeMeta, setNarrativeMeta] = useState({ strength: '', refinement: '' })
+  const [psaAnalysis, setPSAAnalysis] = useState(null)
+  const [isAnalyzingPSA, setIsAnalyzingPSA] = useState(false)
   const { saveStatus, setSaving, setSaved, setError: setSaveError } = useSaveStatus()
 
   useEffect(() => {
@@ -63,11 +67,30 @@ export default function MentorMenteeView() {
     try {
       const data = await getMentee(id)
       setMentee(data)
+      if (data.psaAnalysis) setPSAAnalysis(data.psaAnalysis)
     } catch (err) {
       setNotFound(true)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  async function handleReAnalyzePSA() {
+    setIsAnalyzingPSA(true)
+    try {
+      const result = await analyzePSA(id)
+      setPSAAnalysis(result.analysis)
+      if (result.mentee) setMentee(result.mentee)
+    } catch (err) {
+      console.error('PSA re-analysis failed:', err)
+    } finally {
+      setIsAnalyzingPSA(false)
+    }
+  }
+
+  function handlePSAAnalysisComplete(analysis, updatedMentee) {
+    setPSAAnalysis(analysis)
+    if (updatedMentee) setMentee(updatedMentee)
   }
 
   async function handleUpdate(patch) {
@@ -294,6 +317,18 @@ export default function MentorMenteeView() {
               {roles.length} {roles.length === 1 ? 'role' : 'roles'} documented
               {mentee.updatedAt && ` · Last updated ${formatDate(mentee.updatedAt)}`}
             </p>
+            {/* Revision summary */}
+            {roles.some(r => r.aiFeedback) && (() => {
+              const analyzedRoles = roles.filter(r => r.aiFeedback)
+              const revisedCount = analyzedRoles.filter(r => r.revisedAfterFeedback).length
+              return (
+                <p className="text-xs mt-2 font-medium">
+                  <span className={revisedCount === analyzedRoles.length ? 'text-green-700' : 'text-amber-700'}>
+                    {revisedCount} of {analyzedRoles.length} {analyzedRoles.length === 1 ? 'role' : 'roles'} revised after feedback
+                  </span>
+                </p>
+              )
+            })()}
           </div>
 
           {roles.length === 0 ? (
@@ -335,11 +370,23 @@ export default function MentorMenteeView() {
           {hasEnoughRoles && <GenerateButton />}
         </section>
 
-        {/* Table Stakes first in mentor view */}
+        {/* Passions, Strengths & Aspirations */}
         <section>
           <div className="mb-2">
-            <h2 className="text-2xl font-bold text-[#1F4E79]">Passions, Strengths & Aspirations</h2>
+            <h2 className="text-2xl font-bold text-[#1F4E79]">Passions, Strengths &amp; Aspirations</h2>
           </div>
+
+          {/* PSA Analysis panel at top of section in mentor view */}
+          {psaAnalysis && (
+            <div className="mb-6 bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+              <PSAAnalysisPanel
+                psaAnalysis={psaAnalysis}
+                isMentorView={true}
+                onReAnalyze={handleReAnalyzePSA}
+                isAnalyzing={isAnalyzingPSA}
+              />
+            </div>
+          )}
 
           <div className="mb-6">
             <VennDiagram />
@@ -361,6 +408,7 @@ export default function MentorMenteeView() {
           <PassionsStrengthsAspirations
             menteeData={mentee}
             onUpdate={handleUpdate}
+            onPSAAnalysisComplete={handlePSAAnalysisComplete}
             isMentorView={true}
             mentorComments={mentorComments}
             onAddComment={handleAddComment}

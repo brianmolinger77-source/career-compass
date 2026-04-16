@@ -41,15 +41,22 @@ export function deleteRole(menteeId, roleId) {
   })
 }
 
-export function analyzeRole(menteeId, roleId, whatIDid, howIDidIt, impact) {
+export function analyzeRole(menteeId, roleId, whatIDid, howIDidIt, impact, isRevision = false) {
   return request('/api/analyze-role', {
     method: 'POST',
-    body: JSON.stringify({ menteeId, roleId, whatIDid, howIDidIt, impact })
+    body: JSON.stringify({ menteeId, roleId, whatIDid, howIDidIt, impact, isRevision })
   })
 }
 
-export function generateNarrative(menteeId) {
+export function generateNarrative(menteeId, careerThread = '') {
   return request('/api/generate-narrative', {
+    method: 'POST',
+    body: JSON.stringify({ menteeId, careerThread })
+  })
+}
+
+export function analyzePSA(menteeId) {
+  return request('/api/analyze-psa', {
     method: 'POST',
     body: JSON.stringify({ menteeId })
   })

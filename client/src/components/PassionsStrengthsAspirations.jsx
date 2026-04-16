@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import MentorComment from './MentorComment'
+import { analyzePSA } from '../utils/api'
 
 const SECTIONS = [
   {
@@ -39,6 +40,7 @@ const SECTIONS = [
 export default function PassionsStrengthsAspirations({
   menteeData,
   onUpdate,
+  onPSAAnalysisComplete,
   isMentorView = false,
   mentorComments = [],
   onAddComment,
@@ -50,6 +52,8 @@ export default function PassionsStrengthsAspirations({
     strengths: menteeData.strengths || '',
     aspirations: menteeData.aspirations || ''
   })
+  const [isAnalyzingPSA, setIsAnalyzingPSA] = useState(false)
+  const [psaError, setPSAError] = useState(null)
   const debounceTimers = useRef({})
 
   function handleChange(key, value) {
@@ -61,6 +65,21 @@ export default function PassionsStrengthsAspirations({
       onUpdate({ [key]: value })
     }, 1500)
   }
+
+  async function handleAnalyzePSA() {
+    setIsAnalyzingPSA(true)
+    setPSAError(null)
+    try {
+      const result = await analyzePSA(menteeData.id)
+      if (onPSAAnalysisComplete) onPSAAnalysisComplete(result.analysis, result.mentee)
+    } catch (err) {
+      setPSAError('Analysis unavailable right now — try again in a moment.')
+    } finally {
+      setIsAnalyzingPSA(false)
+    }
+  }
+
+  const allThreeFilled = localData.passions.trim() && localData.strengths.trim() && localData.aspirations.trim()
 
   return (
     <div className="space-y-8">
@@ -86,10 +105,21 @@ export default function PassionsStrengthsAspirations({
             ))}
           </div>
 
+          {/* Strengths-specific helper line */}
+          {section.key === 'strengths' && (
+            <p className="text-xs text-gray-400 italic">
+              Each strength should be something someone else recognized in you — not just something you believe about yourself.
+            </p>
+          )}
+
           <textarea
             value={localData[section.key]}
             onChange={e => handleChange(section.key, e.target.value)}
-            placeholder={`Write about your ${section.key.toLowerCase()} here...`}
+            placeholder={
+              section.key === 'strengths'
+                ? "Try starting each strength like this: 'My [supervisor / colleague / teammate] told me I was good at...'\nFor example: 'My supervisor told me I was good at staying calm under pressure and making quick decisions when things went wrong.'"
+                : `Write about your ${section.key.toLowerCase()} here...`
+            }
             rows={5}
             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
           />
@@ -106,6 +136,34 @@ export default function PassionsStrengthsAspirations({
           )}
         </div>
       ))}
+
+      {/* PSA Cross-Section Analyze Button — shown after all three sections are filled */}
+      {allThreeFilled && (
+        <div className="flex flex-col items-center gap-3 pt-2 no-print">
+          <button
+            onClick={handleAnalyzePSA}
+            disabled={isAnalyzingPSA}
+            className="bg-[#1F4E79] hover:bg-[#163d5e] text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
+          >
+            {isAnalyzingPSA ? (
+              <>
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Analyzing...
+              </>
+            ) : (
+              <>&#10022; Analyze My Passions, Strengths &amp; Aspirations</>
+            )}
+          </button>
+          {psaError && (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              {psaError}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
