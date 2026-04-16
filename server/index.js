@@ -14,10 +14,14 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ── MongoDB connection ────────────────────────────────────────────────────────
-mongoose
-  .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/career-compass')
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
+const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/career-compass';
+console.log('MONGODB_URI (first 20 chars):', mongoUri.slice(0, 20));
+
+mongoose.connection.on('connected', () => console.log('MongoDB connected'));
+mongoose.connection.on('disconnected', () => console.warn('MongoDB disconnected'));
+mongoose.connection.on('error', (err) => console.error('MongoDB connection error:', err));
+
+mongoose.connect(mongoUri, { dbName: 'test' }).catch(err => console.error('MongoDB initial connection failed:', err));
 
 app.use(cors({
   origin: true,       // mirrors request origin — works locally and on Vercel

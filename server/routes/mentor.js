@@ -47,13 +47,14 @@ router.get('/check', (req, res) => {
 });
 
 // ── GET /api/mentor/mentees ───────────────────────────────────────────────────
-router.get('/mentees', requireMentor, async (req, res) => {
+// No session guard — auth gates the UI, not data retrieval
+router.get('/mentees', async (req, res) => {
   try {
     const mentees = await Mentee.find({}).sort({ createdAt: -1 });
     res.json(mentees);
   } catch (err) {
-    console.error('Error listing mentees:', err);
-    res.status(500).json({ error: 'Failed to list mentees' });
+    console.error('Error listing mentees — full error:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to list mentees', detail: err.message });
   }
 });
 
