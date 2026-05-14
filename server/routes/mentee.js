@@ -88,4 +88,23 @@ router.delete('/:id/roles/:roleId', async (req, res) => {
   }
 });
 
+// ── POST /api/mentee/:id/verify-pin ─────────────────────────────────────────
+router.post('/:id/verify-pin', async (req, res) => {
+  try {
+    const mentee = await Mentee.findOne({ id: req.params.id });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+    const { pin } = req.body;
+    if (!pin) {
+      return res.status(400).json({ error: 'PIN is required' });
+    }
+    const verified = mentee.pin === String(pin);
+    res.json({ verified });
+  } catch (err) {
+    console.error('Error verifying PIN:', err);
+    res.status(500).json({ error: 'Failed to verify PIN' });
+  }
+});
+
 module.exports = router;
