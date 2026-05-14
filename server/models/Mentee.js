@@ -24,6 +24,18 @@ const commentSchema = new mongoose.Schema({
   updatedAt: { type: Date }
 }, { _id: false });
 
+const jobAnalysisSchema = new mongoose.Schema({
+  id:             { type: String },
+  jobTitle:       { type: String, default: '' },
+  jobPostingText: { type: String, default: '' },
+  analyzedAt:     { type: Date },
+  aligns:         { type: [String], default: [] },
+  differences:    { type: [String], default: [] },
+  unknowns:       { type: [String], default: [] },
+  conflicts:      { type: mongoose.Schema.Types.Mixed, default: [] },
+  mentorFlagged:  { type: Boolean, default: true }
+}, { _id: false });
+
 // ── Main schema ───────────────────────────────────────────────────────────────
 
 const menteeSchema = new mongoose.Schema({
@@ -44,9 +56,17 @@ const menteeSchema = new mongoose.Schema({
   themesGeneratedAt:    { type: Date, default: null },
   mentorComments:       { type: [commentSchema], default: [] },
   careerThread:         { type: String, default: '' },
-  psaAnalysis:          { type: mongoose.Schema.Types.Mixed, default: null }
+  psaAnalysis:          { type: mongoose.Schema.Types.Mixed, default: null },
+  resumeBullets:        { type: mongoose.Schema.Types.Mixed, default: null },
+  resumeGeneratedAt:    { type: Date, default: null },
+  resumeSkills:         { type: [String], default: [] },
+  resumeCertifications: { type: [String], default: [] },
+  resumeEducation:      { type: [String], default: [] },
+  resumeSummary:        { type: String, default: '' },
+  pin:                  { type: String, default: '' },
+  jobAnalyses:          { type: [jobAnalysisSchema], default: [] }
 }, {
-  timestamps: false   // managed manually to stay consistent with existing ISO strings
+  timestamps: false
 });
 
 // Remove Mongoose internals (_id, __v) from JSON output

@@ -335,4 +335,373 @@ ${mentee.aspirations || '(not provided)'}`;
   }
 });
 
+// ── POST /api/generate-resume-bullets ────────────────────────────────────────
+router.post('/generate-resume-bullets', async (req, res) => {
+  try {
+    const { menteeId } = req.body;
+
+    if (!menteeId) {
+      return res.status(400).json({ error: 'menteeId is required' });
+    }
+
+    const mentee = await Mentee.findOne({ id: menteeId });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!mentee.roles || mentee.roles.length === 0) {
+      return res.status(400).json({ error: 'At least one role is required to generate resume bullets' });
+    }
+
+    const rolesText = mentee.roles.map(role => {
+      const jargonContext = role.aiFeedback?.jargonFlags?.length
+        ? `Jargon to avoid: ${role.aiFeedback.jargonFlags.map(f => f.term).join(', ')}`
+        : '';
+      return `---
+Role ID: ${role.id}
+Title: ${role.title || 'Untitled'}
+Organization: ${role.organization || 'Unknown'}
+Years: ${role.startYear || '?'} – ${role.endYear || 'Present'}
+What They Did: ${role.whatIDid || 'Not provided'}
+How They Did It: ${role.howIDidIt || 'Not provided'}
+The Impact: ${role.impact || 'Not provided'}
+${jargonContext}
+---`;
+    }).join('\n\n');
+
+    const themesContext = mentee.themes?.length
+      ? `Career themes identified across all roles: ${mentee.themes.join(', ')}`
+      : '';
+
+    const systemPrompt = `You are an expert resume writer specializing in helping military veterans translate their service into compelling civilian resumes. You will generate two things: (1) a Professional Summary and (2) resume bullet points for each role.
+
+── PROFESSIONAL SUMMARY ────────────────────────────────────────────────────────
+Write exactly 3 sentences. No more, no fewer.
+
+Sentence 1 — Professional identity: Lead with their strongest differentiator. Who are they at their best? Do NOT start with "I", "I'm", or "I am". Open with a strong declarative statement about their professional value (e.g. "A proven operations leader who...", "Recognized for...", "Trusted by...").
+
+Sentence 2 — What they bring: Their most compelling and specific combination of skills, experiences, or achievements that a hiring manager would find distinctive and memorable — not a generic list of buzzwords.
+
+Sentence 3 — What they are seeking: A concrete, forward-looking statement about the type of role, contribution, or environment they are targeting.
+
+Quality bar: After reading these 3 sentences, a hiring manager must immediately understand this person's brand and want to learn more. Do NOT retell their career chronologically. Do NOT use generic phrases like "results-driven" or "team player" without specifics. Be direct and specific to this person's actual experience.
+
+── RESUME BULLETS ──────────────────────────────────────────────────────────────
+For each role provided, generate exactly 3–4 strong bullet points:
+- Start with a strong past-tense action verb (Led, Managed, Developed, Reduced, Delivered, Coordinated, etc.)
+- Quantify impact wherever the source material contains numbers, scale, percentages, or dollar amounts
+- Completely jargon-free — understandable to any civilian hiring manager with zero military knowledge
+- One to two lines maximum per bullet
+- Do NOT end bullets with a period
+- Prioritize leadership, business impact, and scale over task lists
+
+Return ONLY valid JSON in this exact format, with no extra text before or after:
+{
+  "summary": "Sentence 1. Sentence 2. Sentence 3.",
+  "bullets": {
+    "[roleId]": ["bullet 1", "bullet 2", "bullet 3"]
+  }
+}
+
+Include every roleId provided. Generate exactly 3–4 bullets per role.`;
+
+    const psaContext = [
+      mentee.passions   ? `Passions: ${mentee.passions}`     : '',
+      mentee.strengths  ? `Strengths: ${mentee.strengths}`   : '',
+      mentee.aspirations? `Aspirations: ${mentee.aspirations}`: '',
+      mentee.tableStakes? `Table Stakes: ${mentee.tableStakes}`: '',
+    ].filter(Boolean).join('\n');
+
+    const userMessage = `Generate a professional summary and resume bullets for ${mentee.name}.
+
+CAREER HISTORY:
+${rolesText}
+
+${themesContext}
+
+${psaContext ? `SELF-ASSESSMENT:\n${psaContext}` : ''}
+
+${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not copy):\n${mentee.generatedNarrative}` : ''}`;
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 2500,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }]
+    });
+
+    const rawText = response.content[0].text;
+
+    let result;
+    try {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse resume bullets response:', parseErr);
+      return res.status(500).json({
+        error: 'Resume bullet generation unavailable right now — try again in a moment.'
+      });
+    }
+
+    const now = new Date();
+    mentee.resumeBullets = result.bullets;
+    mentee.resumeSummary = result.summary || '';
+    mentee.resumeGeneratedAt = now;
+    mentee.updatedAt = now;
+    mentee.markModified('resumeBullets');
+    await mentee.save();
+
+    res.json({ roleBullets: result.bullets, resumeSummary: result.summary || '', resumeGeneratedAt: now, mentee });
+  } catch (err) {
+    console.error('Error generating resume bullets:', err);
+    res.status(500).json({
+      error: 'Resume bullet generation unavailable right now — try again in a moment.'
+    });
+  }
+});
+
+// ── POST /api/regenerate-summary ─────────────────────────────────────────────
+router.post('/regenerate-summary', async (req, res) => {
+  try {
+    const { menteeId } = req.body;
+
+    if (!menteeId) {
+      return res.status(400).json({ error: 'menteeId is required' });
+    }
+
+    const mentee = await Mentee.findOne({ id: menteeId });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    const rolesText = (mentee.roles || []).map(role =>
+      `${role.title || 'Untitled'} at ${role.organization || 'Unknown'} (${role.startYear || '?'}–${role.endYear || 'Present'}): ${role.whatIDid || ''} ${role.howIDidIt || ''} ${role.impact || ''}`.trim()
+    ).join('\n');
+
+    const systemPrompt = `Write a Professional Summary of exactly 3 sentences for a resume. Maximum 60 words total.
+
+STRICT RULES — violating any of these is a failure:
+- Do NOT start with "I", "I'm", "I am", or "My"
+- No filler phrases ("someone who thrives on", "passionate about", "results-driven", "team player")
+- Every word must earn its place
+
+Sentence 1: A declarative statement leading with their strongest professional differentiator. Structure: "[Adjective] [professional identity] who [specific value proposition]."
+Sentence 2: One specific quantified achievement that proves the claim in Sentence 1.
+Sentence 3: The role they are targeting and one concrete reason they are ready for it.
+
+Return ONLY valid JSON: {"summary": "Sentence 1. Sentence 2. Sentence 3."}`;
+
+    const psaContext = [
+      mentee.passions    ? `Passions: ${mentee.passions}`      : '',
+      mentee.strengths   ? `Strengths: ${mentee.strengths}`    : '',
+      mentee.aspirations ? `Aspirations: ${mentee.aspirations}` : '',
+      mentee.tableStakes ? `Table Stakes: ${mentee.tableStakes}`: '',
+    ].filter(Boolean).join('\n');
+
+    const userMessage = `Generate a 3-sentence professional summary for ${mentee.name}.
+
+${mentee.themes?.length ? `Career themes: ${mentee.themes.join(', ')}\n` : ''}
+CAREER HISTORY:
+${rolesText || 'Not provided'}
+
+${psaContext ? `SELF-ASSESSMENT:\n${psaContext}` : ''}
+
+${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not copy):\n${mentee.generatedNarrative}` : ''}`;
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 500,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }]
+    });
+
+    const rawText = response.content[0].text;
+
+    let result;
+    try {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse summary response:', parseErr);
+      return res.status(500).json({
+        error: 'Summary generation unavailable right now — try again in a moment.'
+      });
+    }
+
+    const now = new Date();
+    mentee.resumeSummary = result.summary || '';
+    mentee.updatedAt = now;
+    await mentee.save();
+
+    res.json({ resumeSummary: result.summary || '', mentee });
+  } catch (err) {
+    console.error('Error regenerating summary:', err);
+    res.status(500).json({
+      error: 'Summary generation unavailable right now — try again in a moment.'
+    });
+  }
+});
+
+module.exports = router;
+
+// ── POST /api/evaluate-job-posting ───────────────────────────────────────────
+router.post('/evaluate-job-posting', async (req, res) => {
+  try {
+    const { menteeId, jobPostingText } = req.body;
+
+    if (!menteeId || !jobPostingText) {
+      return res.status(400).json({ error: 'menteeId and jobPostingText are required' });
+    }
+
+    const mentee = await Mentee.findOne({ id: menteeId });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    // Readiness gate
+    const hasRole = mentee.roles && mentee.roles.length > 0;
+    const hasTableStake = mentee.tableStakes && mentee.tableStakes.trim().length > 0;
+    const hasPSA = mentee.passions && mentee.passions.trim().length > 0
+                && mentee.strengths && mentee.strengths.trim().length > 0
+                && mentee.aspirations && mentee.aspirations.trim().length > 0;
+
+    if (!hasRole || !hasTableStake || !hasPSA) {
+      return res.status(400).json({
+        error: 'readiness_gate',
+        message: 'To use this feature, you need at least one career history entry, something in all three PSA fields (Passions, Strengths, and Aspirations), and at least one table stake.'
+      });
+    }
+
+    const profileText = `
+CAREER HISTORY:
+${mentee.roles.map((r, i) => `Role ${i + 1}: ${r.title || 'Untitled'} at ${r.organization || 'Unknown'} (${r.startYear || '?'} - ${r.endYear || 'Present'})
+What I Did: ${r.whatIDid || 'Not provided'}
+How I Did It: ${r.howIDidIt || 'Not provided'}
+The Impact: ${r.impact || 'Not provided'}`).join('\n\n')}
+
+PASSIONS: ${mentee.passions || 'Not provided'}
+STRENGTHS: ${mentee.strengths || 'Not provided'}
+ASPIRATIONS: ${mentee.aspirations || 'Not provided'}
+TABLE STAKES (non-negotiables): ${mentee.tableStakes || 'Not provided'}
+${mentee.themes && mentee.themes.length > 0 ? `CAREER THEMES: ${mentee.themes.join(', ')}` : ''}`;
+
+    const systemPrompt = `You are supporting a military veteran in evaluating a job posting against their career profile. Your job is to act as a mirror, not an advisor. You reflect the veteran's own words back to them in the context of the posting. You never tell them whether to apply. You never make judgments about whether this is a good or bad opportunity. You hold your conclusions loosely — you know you have an incomplete picture. The job description may not capture everything about the role or culture. The veteran's profile may not capture everything about who they are.
+
+${COACHING_PHILOSOPHY}
+
+Analyze the job posting against the veteran's profile and return four buckets:
+
+**ALIGNS** — Specific, concrete connections between what the posting describes and what appears in the veteran's profile. Name both the posting element and the profile element it connects to. If no clear alignments exist, return an empty array — do not manufacture encouragement.
+
+**DIFFERENCES** — Gaps or mismatches worth noting but not direct conflicts. Frame these neutrally as observations, not problems. Things worth being aware of or asking about.
+
+**UNKNOWNS** — Things the posting implies but doesn't explicitly state, where the profile also doesn't give enough to assess. Frame these as questions worth asking the employer or thinking through before applying.
+
+**CONFLICTS** — Maximum three items, selected in this priority order:
+1. Anything that directly contradicts a stated table stake
+2. Quality of life factors (travel requirements, remote vs. in-person, work schedule, work environment) that conflict with something explicitly stated in the PSAs
+3. Credentials, degrees, or certifications, or years of experience explicitly labeled "required" in the posting that do not appear in the profile
+
+For conflicts involving a table stake or quality of life factor, include a reflecting question in a mentor tone: "You've told us that [X] matters to you. This posting suggests [Y]. How does that sit with what you're looking for?"
+For conflicts involving missing required credentials: "This posting lists [credential] as required and we don't see that captured in your profile. Think about how you will talk to that."
+
+CRITICAL CONSTRAINTS:
+- Never surface a conflict that cannot be grounded in something the veteran has explicitly written in their profile
+- Never infer preferences or values that are not stated
+- If fewer than three conflicts exist, return only what genuinely qualifies — do not pad to reach three
+- Output is preparation for a conversation, never a final assessment
+
+Also extract the job title from the posting for display purposes.
+
+Return ONLY valid JSON in this exact format:
+{
+  "jobTitle": "extracted job title from the posting, or 'Job Posting' if not clearly stated",
+  "aligns": ["specific alignment 1", "specific alignment 2"],
+  "differences": ["difference 1", "difference 2"],
+  "unknowns": ["unknown 1", "unknown 2"],
+  "conflicts": [
+    { "observation": "the conflict", "reflectingQuestion": "the mentor-tone question" }
+  ]
+}`;
+
+    const userMessage = `Here is the veteran's career profile:
+
+${profileText}
+
+Here is the job posting to evaluate:
+
+${jobPostingText}`;
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }]
+    });
+
+    const rawText = response.content[0].text;
+
+    let result;
+    try {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse job evaluation response:', parseErr);
+      return res.status(500).json({
+        error: 'Analysis unavailable right now — try again in a moment.'
+      });
+    }
+
+    // Persist to jobAnalyses array
+    const now = new Date();
+    const analysisId = `job-${Date.now()}`;
+
+    if (!mentee.jobAnalyses) mentee.jobAnalyses = [];
+    mentee.jobAnalyses.push({
+      id: analysisId,
+      jobTitle: result.jobTitle || 'Job Posting',
+      jobPostingText,
+      analyzedAt: now,
+      aligns: result.aligns || [],
+      differences: result.differences || [],
+      unknowns: result.unknowns || [],
+      conflicts: result.conflicts || [],
+      mentorFlagged: true
+    });
+
+    mentee.updatedAt = now;
+    mentee.markModified('jobAnalyses');
+    await mentee.save();
+
+    res.json({
+      analysisId,
+      jobTitle: result.jobTitle || 'Job Posting',
+      aligns: result.aligns || [],
+      differences: result.differences || [],
+      unknowns: result.unknowns || [],
+      conflicts: result.conflicts || [],
+      mentee
+    });
+
+  } catch (err) {
+    console.error('Error evaluating job posting:', err);
+    res.status(500).json({
+      error: 'Analysis unavailable right now — try again in a moment.'
+    });
+  }
+});
+
+
 module.exports = router;
