@@ -11,39 +11,6 @@ import ResumeBuilder from '../components/ResumeBuilder'
 import { SaveStatusIndicator, useSaveStatus } from '../utils/autosave'
 
 function calcCompletion(mentee) {
-  if (!pinVerified) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm text-center">
-          <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">🔒</span>
-          </div>
-          <h2 className="text-xl font-bold text-[#1F4E79] mb-2">Enter Your PIN</h2>
-          <p className="text-gray-500 text-sm mb-6">Your mentor provided a 6-digit PIN to access this page.</p>
-          <input
-            type="password"
-            inputMode="numeric"
-            maxLength={6}
-            value={pinInput}
-            onChange={e => setPinInput(e.target.value.replace(/\D/g, ''))}
-            onKeyDown={e => e.key === 'Enter' && pinInput.length === 6 && handlePinSubmit()}
-            placeholder="------"
-            className="w-full text-center text-2xl tracking-widest border border-gray-300 rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
-          />
-          {pinError && <p className="text-red-500 text-sm mb-4">{pinError}</p>}
-          <button
-            onClick={handlePinSubmit}
-            disabled={pinInput.length !== 6}
-            className="w-full py-2.5 bg-[#1F4E79] text-white rounded-lg font-medium text-sm hover:bg-[#163d5e] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Access My Career Compass
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  const roles = mentee.roles || []
   const rolePoints = roles.filter(r => r.whatIDid && r.howIDidIt && r.impact).length
   const sectionPoints =
     (mentee.passions ? 1 : 0) +
@@ -59,6 +26,10 @@ function calcCompletion(mentee) {
 export default function MenteeView() {
   const { menteeId } = useParams()
   const [mentee, setMentee] = useState(null)
+  const [pinVerified, setPinVerified] = useState(false)
+  const [pinInput, setPinInput] = useState('')
+  const [pinError, setPinError] = useState(null)
+  const [isMentor, setIsMentor] = useState(false)
   const [notFound, setNotFound] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -72,10 +43,6 @@ export default function MenteeView() {
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [jobEvalError, setJobEvalError] = useState(null)
   const { saveStatus, setSaving, setSaved, setError: setSaveError } = useSaveStatus()
-  const [pinVerified, setPinVerified] = useState(false)
-  const [pinInput, setPinInput] = useState('')
-  const [pinError, setPinError] = useState(null)
-  const [isMentor, setIsMentor] = useState(false)
 
   async function handleEvaluateJobPosting() {
     setIsEvaluating(true)
@@ -251,6 +218,38 @@ export default function MenteeView() {
           <p className="text-gray-500 text-sm mt-2">
             This Career Compass document doesn't exist. Check your link with your mentor.
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!pinVerified) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 w-full max-w-sm text-center">
+          <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl">🔒</span>
+          </div>
+          <h2 className="text-xl font-bold text-[#1F4E79] mb-2">Enter Your PIN</h2>
+          <p className="text-gray-500 text-sm mb-6">Your mentor provided a 6-digit PIN to access this page.</p>
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={6}
+            value={pinInput}
+            onChange={e => setPinInput(e.target.value.replace(/\D/g, ''))}
+            onKeyDown={e => e.key === 'Enter' && pinInput.length === 6 && handlePinSubmit()}
+            placeholder="------"
+            className="w-full text-center text-2xl tracking-widest border border-gray-300 rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
+          />
+          {pinError && <p className="text-red-500 text-sm mb-4">{pinError}</p>}
+          <button
+            onClick={handlePinSubmit}
+            disabled={pinInput.length !== 6}
+            className="w-full py-2.5 bg-[#1F4E79] text-white rounded-lg font-medium text-sm hover:bg-[#163d5e] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Access My Career Compass
+          </button>
         </div>
       </div>
     )
