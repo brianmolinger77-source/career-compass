@@ -255,6 +255,14 @@ export default function MenteeView() {
     )
   }
 
+  if (!mentee) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-400 text-sm">Loading your Career Compass...</div>
+      </div>
+    )
+  }
+
   const roles = mentee.roles || []
   const completion = calcCompletion(mentee)
   const hasEnoughRoles = roles.length >= 2
