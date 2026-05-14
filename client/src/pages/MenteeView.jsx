@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
-import { getMentee, updateMentee, addRole, deleteRole, generateNarrative } from '../utils/api'
+import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting } from '../utils/api'
 import RoleCard from '../components/RoleCard'
 import VennDiagram from '../components/VennDiagram'
 import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirations'
 import TableStakes from '../components/TableStakes'
 import NarrativeCard from '../components/NarrativeCard'
 import PSAAnalysisPanel from '../components/PSAAnalysisPanel'
+import ResumeBuilder from '../components/ResumeBuilder'
 import { SaveStatusIndicator, useSaveStatus } from '../utils/autosave'
 
 function calcCompletion(mentee) {
@@ -34,7 +35,30 @@ export default function MenteeView() {
   const [careerThread, setCareerThread] = useState('')
   const [showThreadPrompt, setShowThreadPrompt] = useState(false)
   const [psaAnalysis, setPSAAnalysis] = useState(null)
+  const [jobPostingText, setJobPostingText] = useState('')
+  const [jobAnalysis, setJobAnalysis] = useState(null)
+  const [isEvaluating, setIsEvaluating] = useState(false)
+  const [jobEvalError, setJobEvalError] = useState(null)
   const { saveStatus, setSaving, setSaved, setError: setSaveError } = useSaveStatus()
+
+  async function handleEvaluateJobPosting() {
+    setIsEvaluating(true)
+    setJobEvalError(null)
+    setJobAnalysis(null)
+    try {
+      const result = await evaluateJobPosting(menteeId, jobPostingText)
+      setJobAnalysis(result)
+      setMentee(result.mentee)
+    } catch (err) {
+      if (err.message && err.message.includes('readiness_gate')) {
+        setJobEvalError('readiness_gate')
+      } else {
+        setJobEvalError('To use this feature, complete at least one career history entry, all three PSA fields, and at least one table stake.')
+      }
+    } finally {
+      setIsEvaluating(false)
+    }
+  }
 
   useEffect(() => {
     loadMentee()
@@ -173,6 +197,10 @@ export default function MenteeView() {
   const roles = mentee.roles || []
   const completion = calcCompletion(mentee)
   const hasEnoughRoles = roles.length >= 2
+
+  const rolesWithContent = roles.filter(r => r.whatIDid || r.howIDidIt || r.impact)
+  const hasPSAContent = !!(mentee.passions || mentee.strengths || mentee.aspirations)
+  const showResumeBuilder = rolesWithContent.length >= 2 && hasPSAContent
 
   const CareerThreadField = () => (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-3 my-6">
@@ -416,6 +444,113 @@ export default function MenteeView() {
             />
           </section>
         )}
+
+        {/* Resume Builder */}
+        {showResumeBuilder && (
+          <section>
+            <ResumeBuilder mentee={mentee} onUpdate={handleUpdate} />
+          </section>
+        )}
+
+        {/* Job Posting Evaluation */}
+        <section>
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-[#1F4E79]">Evaluate a Job Posting</h2>
+            <p className="text-gray-600 mt-2 leading-relaxed text-sm">
+              Paste a job description below. The AI will compare it against your Career Compass profile and show you where things align, where there are gaps, and where there may be tension with what matters most to you.
+            </p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+            <textarea
+              className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-700 h-48 resize-y focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
+              placeholder="Paste the job description here..."
+              value={jobPostingText}
+              onChange={e => setJobPostingText(e.target.value)}
+            />
+            {jobEvalError === 'readiness_gate' && (
+              <p className="text-amber-600 text-sm mt-3">
+                To use this feature, complete at least one career history entry, all three PSA fields (Passions, Strengths, and Aspirations), and at least one table stake.
+              </p>
+            )}
+            {jobEvalError && jobEvalError !== 'readiness_gate' && (
+              <p className="text-red-500 text-sm mt-3">{jobEvalError}</p>
+            )}
+            <button
+              onClick={handleEvaluateJobPosting}
+              disabled={isEvaluating || !jobPostingText.trim()}
+              className="mt-4 px-6 py-2 bg-[#1F4E79] text-white rounded-lg text-sm font-medium hover:bg-[#163d5e] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isEvaluating ? 'Analyzing...' : 'Evaluate This Role'}
+            </button>
+          </div>
+
+          {jobAnalysis && (
+            <div className="mt-8 space-y-6">
+
+              {jobAnalysis.aligns && jobAnalysis.aligns.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold text-[#1F4E79] mb-3">Where This Connects</h3>
+                  <ul className="space-y-2">
+                    {jobAnalysis.aligns.map((item, i) => (
+                      <li key={i} className="text-sm text-gray-700 flex gap-2">
+                        <span className="text-green-500 mt-0.5">✓</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {jobAnalysis.differences && jobAnalysis.differences.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold text-[#1F4E79] mb-3">Worth Being Aware Of</h3>
+                  <ul className="space-y-2">
+                    {jobAnalysis.differences.map((item, i) => (
+                      <li key={i} className="text-sm text-gray-700 flex gap-2">
+                        <span className="text-blue-400 mt-0.5">→</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {jobAnalysis.unknowns && jobAnalysis.unknowns.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold text-[#1F4E79] mb-3">Questions Worth Asking</h3>
+                  <ul className="space-y-2">
+                    {jobAnalysis.unknowns.map((item, i) => (
+                      <li key={i} className="text-sm text-gray-700 flex gap-2">
+                        <span className="text-gray-400 mt-0.5">?</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {jobAnalysis.conflicts && jobAnalysis.conflicts.length > 0 && (
+                <div className="bg-white border border-amber-200 rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-semibold text-[#1F4E79] mb-3">Worth a Conversation</h3>
+                  <ul className="space-y-4">
+                    {jobAnalysis.conflicts.map((item, i) => (
+                      <li key={i} className="text-sm text-gray-700">
+                        <p>{item.observation}</p>
+                        {item.reflectingQuestion && (
+                          <p className="mt-2 text-amber-700 italic">{item.reflectingQuestion}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400 text-center pt-2">
+                This analysis is based on what's captured in your Career Compass profile. It's a starting point for reflection, not a recommendation.
+              </p>
+            </div>
+          )}
+        </section>
 
         <div className="pb-12 text-center">
           <p className="text-xs text-gray-300">Career Compass &mdash; {mentee.name}</p>

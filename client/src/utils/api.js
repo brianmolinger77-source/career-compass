@@ -109,3 +109,24 @@ export function deleteComment(menteeId, commentId) {
     method: 'DELETE'
   })
 }
+
+export function generateResumeBullets(menteeId) {
+  return request('/api/generate-resume-bullets', {
+    method: 'POST',
+    body: JSON.stringify({ menteeId })
+  })
+}
+
+export function regenerateSummary(menteeId) {
+  return request('/api/regenerate-summary', {
+    method: 'POST',
+    body: JSON.stringify({ menteeId })
+  })
+}
+
+export function evaluateJobPosting(menteeId, jobPostingText) {
+  return request('/api/evaluate-job-posting', {
+    method: 'POST',
+    body: JSON.stringify({ menteeId, jobPostingText })
+  })
+}
