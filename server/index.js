@@ -21,7 +21,7 @@ mongoose.connection.on('connected', () => console.log('MongoDB connected'));
 mongoose.connection.on('disconnected', () => console.warn('MongoDB disconnected'));
 mongoose.connection.on('error', (err) => console.error('MongoDB connection error:', err));
 
-mongoose.connect(mongoUri, { dbName: 'test' }).catch(err => console.error('MongoDB initial connection failed:', err));
+mongoose.connect(mongoUri).catch(err => console.error('MongoDB initial connection failed:', err));
 
 app.use(cors({
   origin: true,       // mirrors request origin — works locally and on Vercel
