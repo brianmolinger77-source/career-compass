@@ -550,8 +550,6 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
   }
 });
 
-module.exports = router;
-
 // ── POST /api/evaluate-job-posting ───────────────────────────────────────────
 router.post('/evaluate-job-posting', async (req, res) => {
   try {
