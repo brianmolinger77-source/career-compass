@@ -188,6 +188,7 @@ export default function MenteeView() {
       const data = await res.json()
       if (data.verified) {
         setPinVerified(true)
+        loadMentee()
       } else {
         setPinError('Incorrect PIN. Check with your mentor.')
         setPinInput('')
