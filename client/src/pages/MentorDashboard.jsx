@@ -182,6 +182,13 @@ export default function MentorDashboard() {
                         <span className="text-gray-400">Not yet</span>
                       )}
                     </div>
+                    {(mentee.jobAnalyses || []).some(a => a.mentorFlagged) && (
+                      <div className="col-span-2">
+                        <span className="inline-block bg-amber-100 text-amber-800 border border-amber-300 rounded px-2 py-0.5 font-medium">
+                          📋 Job posting — we'll discuss
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <CompletionBar pct={pct} />
