@@ -19,7 +19,7 @@ function calcCompletion(mentee) {
     (mentee.tableStakes ? 1 : 0) +
     (mentee.generatedNarrative ? 1 : 0)
   const total = rolePoints + sectionPoints
-  const max = Math.max(1, roles.length) + 5
+  const max = Math.max(1, (mentee.roles || []).length) + 5
   return Math.round((total / max) * 100)
 }
 
