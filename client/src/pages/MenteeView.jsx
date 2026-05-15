@@ -11,7 +11,7 @@ import ResumeBuilder from '../components/ResumeBuilder'
 import { SaveStatusIndicator, useSaveStatus } from '../utils/autosave'
 
 function calcCompletion(mentee) {
-  const rolePoints = roles.filter(r => r.whatIDid && r.howIDidIt && r.impact).length
+  const rolePoints = (mentee.roles || []).filter(r => r.whatIDid && r.howIDidIt && r.impact).length
   const sectionPoints =
     (mentee.passions ? 1 : 0) +
     (mentee.strengths ? 1 : 0) +
