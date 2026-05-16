@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 const Mentee = require('../models/Mentee');
 const Mentor = require('../models/Mentor');
+const mongoose = require('mongoose');
 
 function nameToSlug(name) {
   return name
@@ -44,6 +45,7 @@ router.post('/login', async (req, res) => {
   }
 
   try {
+    await mongoose.connection.asPromise();
     const mentor = await Mentor.findOne({ email: email.toLowerCase().trim() });
     if (!mentor) {
       return res.status(401).json({ error: 'Invalid email or password' });
@@ -94,6 +96,7 @@ router.get('/check', (req, res) => {
 
 router.get('/mentees', requireMentor, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     let mentees;
 
     if (req.session.role === 'superuser') {
@@ -127,6 +130,7 @@ router.get('/mentees', requireMentor, async (req, res) => {
 
 router.post('/mentees', requireMentor, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const { name, email } = req.body;
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
@@ -187,6 +191,7 @@ router.post('/mentees', requireMentor, async (req, res) => {
 
 router.get('/mentee/:id', requireMentor, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
@@ -205,6 +210,7 @@ router.get('/mentee/:id', requireMentor, async (req, res) => {
 
 router.post('/mentee/:id/comments', requireMentor, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const { section, comment } = req.body;
     if (!section || !comment) {
       return res.status(400).json({ error: 'section and comment are required' });
@@ -239,6 +245,7 @@ router.post('/mentee/:id/comments', requireMentor, async (req, res) => {
 
 router.put('/mentee/:id/comments/:commentId', requireMentor, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const { comment } = req.body;
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
@@ -267,6 +274,7 @@ router.put('/mentee/:id/comments/:commentId', requireMentor, async (req, res) =>
 
 router.delete('/mentee/:id/comments/:commentId', requireMentor, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
@@ -291,6 +299,7 @@ router.delete('/mentee/:id/comments/:commentId', requireMentor, async (req, res)
 
 router.put('/mentee/:id/assign', requireMentor, requireSuperuser, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const { mentorId } = req.body;
     if (!mentorId) {
       return res.status(400).json({ error: 'mentorId is required' });
@@ -323,6 +332,7 @@ router.put('/mentee/:id/assign', requireMentor, requireSuperuser, async (req, re
 
 router.get('/mentors', requireMentor, requireSuperuser, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentors = await Mentor.find({}).sort({ createdAt: -1 });
     res.json(mentors);
   } catch (err) {
@@ -335,6 +345,7 @@ router.get('/mentors', requireMentor, requireSuperuser, async (req, res) => {
 
 router.post('/mentors', requireMentor, requireSuperuser, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const { name, email, password, role } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'name, email, and password are required' });
@@ -389,6 +400,7 @@ router.post('/mentors', requireMentor, requireSuperuser, async (req, res) => {
 
 router.put('/mentors/:id/deactivate', requireMentor, requireSuperuser, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentor = await Mentor.findOne({ id: req.params.id });
     if (!mentor) {
       return res.status(404).json({ error: 'Mentor not found' });
@@ -407,6 +419,7 @@ router.put('/mentors/:id/deactivate', requireMentor, requireSuperuser, async (re
 
 router.put('/mentors/:id/activate', requireMentor, requireSuperuser, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentor = await Mentor.findOne({ id: req.params.id });
     if (!mentor) {
       return res.status(404).json({ error: 'Mentor not found' });
