@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getMentees, createMentee, logout } from '../utils/api'
+import { getMentees, createMentee, logout, checkAuth, getMentors, assignMentee } from '../utils/api'
 
 function calcCompletion(mentee) {
   const roles = mentee.roles || []
@@ -43,6 +43,13 @@ function CompletionBar({ pct }) {
 export default function MentorDashboard() {
   const [mentees, setMentees] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [role, setRole] = useState(null)
+  const [sessionMentorId, setSessionMentorId] = useState(null)
+  const [adminView, setAdminView] = useState(false)
+  const [mentors, setMentors] = useState([])
+  const [reassigningId, setReassigningId] = useState(null)
+  const [reassignValue, setReassignValue] = useState('')
+  const [reassignSaving, setReassignSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [newName, setNewName] = useState('')
   const [newEmail, setNewEmail] = useState('')
@@ -52,7 +59,15 @@ export default function MentorDashboard() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    loadMentees()
+    async function init() {
+      try {
+        const auth = await checkAuth()
+        setRole(auth.role)
+        setSessionMentorId(auth.mentorId)
+      } catch (_) {}
+      await loadMentees()
+    }
+    init()
   }, [])
 
   async function loadMentees() {
@@ -63,6 +78,38 @@ export default function MentorDashboard() {
       console.error('Failed to load mentees:', err)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function handleSwitchToAdmin() {
+    setAdminView(true)
+    if (mentors.length === 0) {
+      try {
+        const data = await getMentors()
+        setMentors(data)
+      } catch (err) {
+        console.error('Failed to load mentors:', err)
+      }
+    }
+  }
+
+  async function handleReassign(menteeId) {
+    if (!reassignValue) return
+    setReassignSaving(true)
+    try {
+      await assignMentee(menteeId, reassignValue)
+      await loadMentees()
+      // Refresh mentors in case none were loaded yet
+      if (mentors.length === 0) {
+        const data = await getMentors()
+        setMentors(data)
+      }
+      setReassigningId(null)
+      setReassignValue('')
+    } catch (err) {
+      console.error('Reassign failed:', err)
+    } finally {
+      setReassignSaving(false)
     }
   }
 
@@ -98,6 +145,15 @@ export default function MentorDashboard() {
     }
   }
 
+  const isSuperuser = role === 'superuser'
+
+  // In "My Mentees" mode, superuser sees only their own mentees
+  const visibleMentees = (isSuperuser && !adminView)
+    ? mentees.filter(m => m.mentorId === sessionMentorId)
+    : mentees
+
+  const activeMentors = mentors.filter(m => m.isActive)
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -118,12 +174,42 @@ export default function MentorDashboard() {
 
       {/* Main content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
+
+        {/* Superuser view toggle */}
+        {isSuperuser && (
+          <div className="flex gap-2 mb-6 no-print">
+            <button
+              onClick={() => setAdminView(false)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                !adminView
+                  ? 'bg-[#1F4E79] text-white'
+                  : 'bg-white border border-gray-300 text-gray-600 hover:border-[#1F4E79] hover:text-[#1F4E79]'
+              }`}
+            >
+              My Mentees
+            </button>
+            <button
+              onClick={handleSwitchToAdmin}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                adminView
+                  ? 'bg-[#1F4E79] text-white'
+                  : 'bg-white border border-gray-300 text-gray-600 hover:border-[#1F4E79] hover:text-[#1F4E79]'
+              }`}
+            >
+              All Mentees + Admin
+            </button>
+          </div>
+        )}
+
         {/* Top bar */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Your Mentees</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              {adminView ? 'All Mentees' : 'Your Mentees'}
+            </h2>
             <p className="text-sm text-gray-500 mt-0.5">
-              {mentees.length} {mentees.length === 1 ? 'mentee' : 'mentees'} in the program
+              {visibleMentees.length} {visibleMentees.length === 1 ? 'mentee' : 'mentees'}
+              {adminView ? ' in the program' : ''}
             </p>
           </div>
           <button
@@ -137,7 +223,7 @@ export default function MentorDashboard() {
         {/* Mentee grid */}
         {isLoading ? (
           <div className="text-center py-16 text-gray-400">Loading mentees...</div>
-        ) : mentees.length === 0 ? (
+        ) : visibleMentees.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-200 shadow-sm">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -149,8 +235,9 @@ export default function MentorDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {mentees.map(mentee => {
+            {visibleMentees.map(mentee => {
               const pct = calcCompletion(mentee)
+              const isReassigning = reassigningId === mentee.id
               return (
                 <div
                   key={mentee.id}
@@ -182,6 +269,14 @@ export default function MentorDashboard() {
                         <span className="text-gray-400">Not yet</span>
                       )}
                     </div>
+                    {adminView && (
+                      <div className="col-span-2">
+                        <span className="font-medium text-gray-600">Mentor: </span>
+                        <span className="text-gray-700">
+                          {mentee.mentor ? mentee.mentor.name : '—'}
+                        </span>
+                      </div>
+                    )}
                     {(mentee.jobAnalyses || []).some(a => a.mentorFlagged) && (
                       <div className="col-span-2">
                         <span className="inline-block bg-amber-100 text-amber-800 border border-amber-300 rounded px-2 py-0.5 font-medium">
@@ -192,6 +287,46 @@ export default function MentorDashboard() {
                   </div>
 
                   <CompletionBar pct={pct} />
+
+                  {/* Admin: reassign control */}
+                  {adminView && (
+                    <div className="no-print">
+                      {isReassigning ? (
+                        <div className="flex gap-2 items-center">
+                          <select
+                            value={reassignValue}
+                            onChange={e => setReassignValue(e.target.value)}
+                            className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
+                          >
+                            <option value="">Select mentor…</option>
+                            {activeMentors.map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleReassign(mentee.id)}
+                            disabled={!reassignValue || reassignSaving}
+                            className="bg-[#1F4E79] hover:bg-[#1a4268] text-white text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-60"
+                          >
+                            {reassignSaving ? '…' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => { setReassigningId(null); setReassignValue('') }}
+                            className="text-xs text-gray-500 hover:text-gray-700 px-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setReassigningId(mentee.id); setReassignValue('') }}
+                          className="text-xs text-gray-500 hover:text-[#1F4E79] border border-gray-200 hover:border-[#1F4E79] px-3 py-1.5 rounded-lg w-full transition-colors"
+                        >
+                          Reassign
+                        </button>
+                      )}
+                    </div>
+                  )}
 
                   <Link
                     to={`/mentor/mentee/${mentee.id}`}

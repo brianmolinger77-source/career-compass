@@ -73,10 +73,21 @@ export function createMentee(name, email) {
   })
 }
 
-export function login(password) {
+export function login(email, password) {
   return request('/api/mentor/login', {
     method: 'POST',
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ email, password })
+  })
+}
+
+export function getMentors() {
+  return request('/api/mentor/mentors')
+}
+
+export function assignMentee(menteeId, mentorId) {
+  return request(`/api/mentor/mentee/${menteeId}/assign`, {
+    method: 'PUT',
+    body: JSON.stringify({ mentorId })
   })
 }
 

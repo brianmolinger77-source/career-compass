@@ -64,7 +64,8 @@ const menteeSchema = new mongoose.Schema({
   resumeEducation:      { type: [String], default: [] },
   resumeSummary:        { type: String, default: '' },
   pin:                  { type: String, default: '' },
-  jobAnalyses:          { type: [jobAnalysisSchema], default: [] }
+  jobAnalyses:          { type: [jobAnalysisSchema], default: [] },
+  mentorId:             { type: String, default: '' }
 }, {
   timestamps: false
 });

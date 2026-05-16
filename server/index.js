@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const path = require('path');
 
+require('./models/Mentor');
 const menteeRoutes = require('./routes/mentee');
 const mentorRoutes = require('./routes/mentor');
 const aiRoutes = require('./routes/ai');

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { login } from '../utils/api'
 
 export default function MentorLogin() {
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -17,10 +18,10 @@ export default function MentorLogin() {
     setIsLoading(true)
 
     try {
-      await login(password)
+      await login(email, password)
       navigate(from, { replace: true })
     } catch (err) {
-      setError('Incorrect password. Please try again.')
+      setError('Invalid email or password. Please try again.')
       setPassword('')
     } finally {
       setIsLoading(false)
@@ -47,10 +48,26 @@ export default function MentorLogin() {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Mentor Access</h2>
-            <p className="text-gray-500 text-sm mt-1">Enter your password to access the dashboard</p>
+            <p className="text-gray-500 text-sm mt-1">Sign in to access the dashboard</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                autoFocus
+                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent"
+              />
+            </div>
+
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
@@ -60,9 +77,8 @@ export default function MentorLogin() {
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Enter mentor password"
+                placeholder="Enter your password"
                 required
-                autoFocus
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent"
               />
             </div>
@@ -75,7 +91,7 @@ export default function MentorLogin() {
 
             <button
               type="submit"
-              disabled={isLoading || !password}
+              disabled={isLoading || !email || !password}
               className="w-full bg-[#C65911] hover:bg-[#a34a0e] text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {isLoading ? (

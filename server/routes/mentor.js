@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcrypt');
 const Mentee = require('../models/Mentee');
+const Mentor = require('../models/Mentor');
 
 function nameToSlug(name) {
   return name
@@ -12,7 +14,8 @@ function nameToSlug(name) {
     .replace(/-+/g, '-');
 }
 
-// ── Middleware: require mentor session ────────────────────────────────────────
+// ── Middleware ────────────────────────────────────────────────────────────────
+
 function requireMentor(req, res, next) {
   if (req.session && req.session.isMentor === true) {
     return next();
@@ -20,18 +23,53 @@ function requireMentor(req, res, next) {
   res.status(401).json({ error: 'Unauthorized — mentor login required' });
 }
 
+function requireSuperuser(req, res, next) {
+  if (req.session && req.session.role === 'superuser') {
+    return next();
+  }
+  res.status(403).json({ error: 'Forbidden — superuser access required' });
+}
+
+function canAccessMentee(mentee, session) {
+  if (session.role === 'superuser') return true;
+  return mentee.mentorId === session.mentorId;
+}
+
 // ── POST /api/mentor/login ────────────────────────────────────────────────────
-router.post('/login', (req, res) => {
-  const { password } = req.body;
-  if (password === process.env.MENTOR_PASSWORD) {
+
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  try {
+    const mentor = await Mentor.findOne({ email: email.toLowerCase().trim() });
+    if (!mentor) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+    if (!mentor.isActive) {
+      return res.status(401).json({ error: 'Account is deactivated' });
+    }
+
+    const valid = await bcrypt.compare(password, mentor.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
     req.session.isMentor = true;
-    res.json({ success: true });
-  } else {
-    res.status(401).json({ error: 'Incorrect password' });
+    req.session.mentorId = mentor.id;
+    req.session.role = mentor.role;
+
+    res.json({ success: true, role: mentor.role });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
 // ── POST /api/mentor/logout ───────────────────────────────────────────────────
+
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
@@ -42,15 +80,42 @@ router.post('/logout', (req, res) => {
 });
 
 // ── GET /api/mentor/check ─────────────────────────────────────────────────────
+
 router.get('/check', (req, res) => {
-  res.json({ authenticated: req.session && req.session.isMentor === true });
+  const authenticated = req.session && req.session.isMentor === true;
+  res.json({
+    authenticated,
+    role: authenticated ? req.session.role : null,
+    mentorId: authenticated ? req.session.mentorId : null
+  });
 });
 
 // ── GET /api/mentor/mentees ───────────────────────────────────────────────────
-// No session guard — auth gates the UI, not data retrieval
-router.get('/mentees', async (req, res) => {
+
+router.get('/mentees', requireMentor, async (req, res) => {
   try {
-    const mentees = await Mentee.find({}).sort({ createdAt: -1 });
+    let mentees;
+
+    if (req.session.role === 'superuser') {
+      const [docs, mentors] = await Promise.all([
+        Mentee.find({}).sort({ createdAt: -1 }),
+        Mentor.find({})
+      ]);
+
+      const mentorMap = {};
+      for (const m of mentors) {
+        mentorMap[m.id] = { id: m.id, name: m.name, email: m.email };
+      }
+
+      mentees = docs.map(doc => {
+        const obj = doc.toJSON();
+        obj.mentor = mentorMap[doc.mentorId] || null;
+        return obj;
+      });
+    } else {
+      mentees = await Mentee.find({ mentorId: req.session.mentorId }).sort({ createdAt: -1 });
+    }
+
     res.json(mentees);
   } catch (err) {
     console.error('Error listing mentees — full error:', err.message, err.stack);
@@ -59,6 +124,7 @@ router.get('/mentees', async (req, res) => {
 });
 
 // ── POST /api/mentor/mentees ──────────────────────────────────────────────────
+
 router.post('/mentees', requireMentor, async (req, res) => {
   try {
     const { name, email } = req.body;
@@ -69,7 +135,6 @@ router.post('/mentees', requireMentor, async (req, res) => {
     const baseSlug = nameToSlug(name);
     const now = new Date();
 
-    // Build the mentee document, retrying on duplicate-slug collision
     let mentee;
     let id = baseSlug;
     let counter = 1;
@@ -82,6 +147,7 @@ router.post('/mentees', requireMentor, async (req, res) => {
           email: email || '',
           createdAt: now,
           updatedAt: now,
+          mentorId: req.session.mentorId,
           roles: [],
           passions: '',
           strengths: '',
@@ -98,7 +164,6 @@ router.post('/mentees', requireMentor, async (req, res) => {
         mentee = doc;
       } catch (err) {
         if (err.code === 11000) {
-          // Duplicate slug — try next suffix
           id = `${baseSlug}-${counter}`;
           counter++;
         } else {
@@ -119,11 +184,15 @@ router.post('/mentees', requireMentor, async (req, res) => {
 });
 
 // ── GET /api/mentor/mentee/:id ────────────────────────────────────────────────
+
 router.get('/mentee/:id', requireMentor, async (req, res) => {
   try {
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+    if (!canAccessMentee(mentee, req.session)) {
+      return res.status(403).json({ error: 'Access denied' });
     }
     res.json(mentee);
   } catch (err) {
@@ -133,6 +202,7 @@ router.get('/mentee/:id', requireMentor, async (req, res) => {
 });
 
 // ── POST /api/mentor/mentee/:id/comments ─────────────────────────────────────
+
 router.post('/mentee/:id/comments', requireMentor, async (req, res) => {
   try {
     const { section, comment } = req.body;
@@ -143,6 +213,9 @@ router.post('/mentee/:id/comments', requireMentor, async (req, res) => {
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+    if (!canAccessMentee(mentee, req.session)) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const now = new Date();
@@ -162,13 +235,17 @@ router.post('/mentee/:id/comments', requireMentor, async (req, res) => {
   }
 });
 
-// ── PUT /api/mentor/mentee/:id/comments/:commentId ────────────────────────────
+// ── PUT /api/mentor/mentee/:id/comments/:commentId ───────────────────────────
+
 router.put('/mentee/:id/comments/:commentId', requireMentor, async (req, res) => {
   try {
     const { comment } = req.body;
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+    if (!canAccessMentee(mentee, req.session)) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const now = new Date();
@@ -187,11 +264,15 @@ router.put('/mentee/:id/comments/:commentId', requireMentor, async (req, res) =>
 });
 
 // ── DELETE /api/mentor/mentee/:id/comments/:commentId ────────────────────────
+
 router.delete('/mentee/:id/comments/:commentId', requireMentor, async (req, res) => {
   try {
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+    if (!canAccessMentee(mentee, req.session)) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     mentee.mentorComments = mentee.mentorComments.filter(
@@ -203,6 +284,140 @@ router.delete('/mentee/:id/comments/:commentId', requireMentor, async (req, res)
   } catch (err) {
     console.error('Error deleting comment:', err);
     res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
+// ── PUT /api/mentor/mentee/:id/assign — superuser only ───────────────────────
+
+router.put('/mentee/:id/assign', requireMentor, requireSuperuser, async (req, res) => {
+  try {
+    const { mentorId } = req.body;
+    if (!mentorId) {
+      return res.status(400).json({ error: 'mentorId is required' });
+    }
+
+    const mentor = await Mentor.findOne({ id: mentorId });
+    if (!mentor) {
+      return res.status(404).json({ error: 'Mentor not found' });
+    }
+    if (!mentor.isActive) {
+      return res.status(400).json({ error: 'Cannot assign to a deactivated mentor' });
+    }
+
+    const mentee = await Mentee.findOne({ id: req.params.id });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    mentee.mentorId = mentorId;
+    mentee.updatedAt = new Date();
+    await mentee.save();
+    res.json(mentee);
+  } catch (err) {
+    console.error('Error assigning mentee:', err);
+    res.status(500).json({ error: 'Failed to assign mentee' });
+  }
+});
+
+// ── GET /api/mentor/mentors — superuser only ─────────────────────────────────
+
+router.get('/mentors', requireMentor, requireSuperuser, async (req, res) => {
+  try {
+    const mentors = await Mentor.find({}).sort({ createdAt: -1 });
+    res.json(mentors);
+  } catch (err) {
+    console.error('Error listing mentors:', err);
+    res.status(500).json({ error: 'Failed to list mentors' });
+  }
+});
+
+// ── POST /api/mentor/mentors — superuser only ────────────────────────────────
+
+router.post('/mentors', requireMentor, requireSuperuser, async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'name, email, and password are required' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const existing = await Mentor.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ error: 'A mentor with this email already exists' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const baseSlug = nameToSlug(name);
+    const now = new Date();
+
+    let mentor;
+    let id = baseSlug;
+    let counter = 1;
+
+    while (!mentor) {
+      try {
+        const doc = new Mentor({
+          id,
+          name,
+          email: normalizedEmail,
+          passwordHash,
+          role: role || 'mentor',
+          isActive: true,
+          createdAt: now,
+          updatedAt: now
+        });
+        await doc.save();
+        mentor = doc;
+      } catch (err) {
+        if (err.code === 11000) {
+          id = `${baseSlug}-${counter}`;
+          counter++;
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    res.json(mentor);
+  } catch (err) {
+    console.error('Error creating mentor:', err);
+    res.status(500).json({ error: 'Failed to create mentor' });
+  }
+});
+
+// ── PUT /api/mentor/mentors/:id/deactivate — superuser only ──────────────────
+
+router.put('/mentors/:id/deactivate', requireMentor, requireSuperuser, async (req, res) => {
+  try {
+    const mentor = await Mentor.findOne({ id: req.params.id });
+    if (!mentor) {
+      return res.status(404).json({ error: 'Mentor not found' });
+    }
+    mentor.isActive = false;
+    mentor.updatedAt = new Date();
+    await mentor.save();
+    res.json(mentor);
+  } catch (err) {
+    console.error('Error deactivating mentor:', err);
+    res.status(500).json({ error: 'Failed to deactivate mentor' });
+  }
+});
+
+// ── PUT /api/mentor/mentors/:id/activate — superuser only ────────────────────
+
+router.put('/mentors/:id/activate', requireMentor, requireSuperuser, async (req, res) => {
+  try {
+    const mentor = await Mentor.findOne({ id: req.params.id });
+    if (!mentor) {
+      return res.status(404).json({ error: 'Mentor not found' });
+    }
+    mentor.isActive = true;
+    mentor.updatedAt = new Date();
+    await mentor.save();
+    res.json(mentor);
+  } catch (err) {
+    console.error('Error activating mentor:', err);
+    res.status(500).json({ error: 'Failed to activate mentor' });
   }
 });
 
