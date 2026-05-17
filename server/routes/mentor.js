@@ -45,7 +45,19 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    await mongoose.connection.asPromise();
+    let connected = false;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await mongoose.connection.asPromise();
+        connected = true;
+        break;
+      } catch (connErr) {
+        if (attempt < 3) await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+    if (!connected) {
+      return res.status(503).json({ error: 'Server is starting up, please try again in a moment.' });
+    }
     const mentor = await Mentor.findOne({ email: email.toLowerCase().trim() });
     if (!mentor) {
       return res.status(401).json({ error: 'Invalid email or password' });
