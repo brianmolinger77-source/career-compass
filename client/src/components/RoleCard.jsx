@@ -65,28 +65,34 @@ export default function RoleCard({
     setIsAnalyzing(true)
     setAnalyzeError(null)
     const isRevision = hasEditedSinceAnalysis
-    try {
-      const result = await analyzeRole(
-        menteeId,
-        role.id,
-        localRole.whatIDid,
-        localRole.howIDidIt,
-        localRole.impact,
-        isRevision
-      )
-      const revisedAfterFeedback = isRevision
-      setLocalRole(prev => ({
-        ...prev,
-        aiFeedback: result.feedback,
-        lastAnalyzed: new Date().toISOString(),
-        revisedAfterFeedback
-      }))
-      setHasEditedSinceAnalysis(false)
-    } catch (err) {
-      setAnalyzeError('Analysis unavailable right now — try again in a moment. Your content has been saved.')
-    } finally {
-      setIsAnalyzing(false)
+    let lastErr
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const result = await analyzeRole(
+          menteeId,
+          role.id,
+          localRole.whatIDid,
+          localRole.howIDidIt,
+          localRole.impact,
+          isRevision
+        )
+        const revisedAfterFeedback = isRevision
+        setLocalRole(prev => ({
+          ...prev,
+          aiFeedback: result.feedback,
+          lastAnalyzed: new Date().toISOString(),
+          revisedAfterFeedback
+        }))
+        setHasEditedSinceAnalysis(false)
+        setIsAnalyzing(false)
+        return
+      } catch (err) {
+        lastErr = err
+        if (attempt < 3) await new Promise(r => setTimeout(r, 1500))
+      }
     }
+    setAnalyzeError('Analysis unavailable right now — try again in a moment. Your content has been saved.')
+    setIsAnalyzing(false)
   }
 
   function handleDeleteClick() {

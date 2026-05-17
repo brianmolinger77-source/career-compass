@@ -69,14 +69,20 @@ export default function PassionsStrengthsAspirations({
   async function handleAnalyzePSA() {
     setIsAnalyzingPSA(true)
     setPSAError(null)
-    try {
-      const result = await analyzePSA(menteeData.id)
-      if (onPSAAnalysisComplete) onPSAAnalysisComplete(result.analysis, result.mentee)
-    } catch (err) {
-      setPSAError('Analysis unavailable right now — try again in a moment.')
-    } finally {
-      setIsAnalyzingPSA(false)
+    let lastErr
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const result = await analyzePSA(menteeData.id)
+        if (onPSAAnalysisComplete) onPSAAnalysisComplete(result.analysis, result.mentee)
+        setIsAnalyzingPSA(false)
+        return
+      } catch (err) {
+        lastErr = err
+        if (attempt < 3) await new Promise(r => setTimeout(r, 1500))
+      }
     }
+    setPSAError('Analysis unavailable right now — try again in a moment.')
+    setIsAnalyzingPSA(false)
   }
 
   const allThreeFilled = localData.passions.trim() && localData.strengths.trim() && localData.aspirations.trim()
