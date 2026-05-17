@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const path = require('path');
@@ -34,6 +35,7 @@ app.use(cookieParser());
 
 app.use(session({
   secret: (() => { if (!process.env.SESSION_SECRET) throw new Error('SESSION_SECRET environment variable is not set — server will not start'); return process.env.SESSION_SECRET; })(),
+  store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI }),
   resave: false,
   saveUninitialized: false,
   cookie: {
