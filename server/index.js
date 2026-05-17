@@ -33,7 +33,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'career-compass-secret-key-2024',
+  secret: (() => { if (!process.env.SESSION_SECRET) throw new Error('SESSION_SECRET environment variable is not set — server will not start'); return process.env.SESSION_SECRET; })(),
   resave: false,
   saveUninitialized: false,
   cookie: {
