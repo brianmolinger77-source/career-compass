@@ -66,10 +66,17 @@ export function getMentees() {
   return request('/api/mentor/mentees')
 }
 
-export function createMentee(name, email) {
+export function createMentee(name, email, pin) {
   return request('/api/mentor/mentees', {
     method: 'POST',
-    body: JSON.stringify({ name, email })
+    body: JSON.stringify({ name, email, pin })
+  })
+}
+
+export function updateMenteePin(menteeId, pin) {
+  return request(`/api/mentor/mentee/${menteeId}/pin`, {
+    method: 'PUT',
+    body: JSON.stringify({ pin })
   })
 }
 

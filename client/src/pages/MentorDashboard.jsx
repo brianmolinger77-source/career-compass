@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getMentees, createMentee, logout, checkAuth, getMentors, assignMentee } from '../utils/api'
+import { getMentees, createMentee, logout, checkAuth, getMentors, assignMentee, updateMenteePin } from '../utils/api'
 
 function calcCompletion(mentee) {
   const roles = mentee.roles || []
@@ -53,9 +53,15 @@ export default function MentorDashboard() {
   const [showModal, setShowModal] = useState(false)
   const [newName, setNewName] = useState('')
   const [newEmail, setNewEmail] = useState('')
+  const [newPin, setNewPin] = useState('')
   const [creating, setCreating] = useState(false)
   const [createdUrl, setCreatedUrl] = useState(null)
   const [createError, setCreateError] = useState('')
+  const [pinEditing, setPinEditing] = useState(null)
+  const [pinValue, setPinValue] = useState('')
+  const [pinSaving, setPinSaving] = useState(false)
+  const [pinError, setPinError] = useState('')
+  const [pinSuccess, setPinSuccess] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -118,7 +124,7 @@ export default function MentorDashboard() {
     setCreating(true)
     setCreateError('')
     try {
-      const result = await createMentee(newName, newEmail)
+      const result = await createMentee(newName, newEmail, newPin)
       setCreatedUrl(`${window.location.origin}/mentee/${result.mentee.id}`)
       setMentees(prev => [result.mentee, ...prev])
     } catch (err) {
@@ -132,8 +138,29 @@ export default function MentorDashboard() {
     setShowModal(false)
     setNewName('')
     setNewEmail('')
+    setNewPin('')
     setCreatedUrl(null)
     setCreateError('')
+  }
+
+  async function handlePinUpdate(menteeId) {
+    if (!/^\d{6}$/.test(pinValue)) {
+      setPinError('PIN must be exactly 6 digits')
+      return
+    }
+    setPinSaving(true)
+    setPinError('')
+    try {
+      await updateMenteePin(menteeId, pinValue)
+      setPinSuccess(menteeId)
+      setPinEditing(null)
+      setPinValue('')
+      setTimeout(() => setPinSuccess(null), 3000)
+    } catch (err) {
+      setPinError(err.message || 'Failed to update PIN')
+    } finally {
+      setPinSaving(false)
+    }
   }
 
   async function handleLogout() {
@@ -288,6 +315,48 @@ export default function MentorDashboard() {
 
                   <CompletionBar pct={pct} />
 
+                  {/* PIN management */}
+                  {!adminView && (
+                    <div className="no-print">
+                      {pinEditing === mentee.id ? (
+                        <div className="space-y-2">
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={pinValue}
+                              onChange={e => { setPinValue(e.target.value.replace(/\D/g, '').slice(0, 6)); setPinError('') }}
+                              placeholder="New 6-digit PIN"
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
+                            />
+                            <button
+                              onClick={() => handlePinUpdate(mentee.id)}
+                              disabled={pinSaving || pinValue.length !== 6}
+                              className="bg-[#1F4E79] hover:bg-[#1a4268] text-white text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-60"
+                            >
+                              {pinSaving ? '…' : 'Save'}
+                            </button>
+                            <button
+                              onClick={() => { setPinEditing(null); setPinValue(''); setPinError('') }}
+                              className="text-xs text-gray-500 hover:text-gray-700 px-1"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          {pinError && <p className="text-xs text-red-600">{pinError}</p>}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setPinEditing(mentee.id); setPinValue(''); setPinError('') }}
+                          className="w-full text-xs text-gray-500 border border-gray-200 hover:border-[#1F4E79] hover:text-[#1F4E79] rounded-lg px-3 py-1.5 transition-colors text-left"
+                        >
+                          {pinSuccess === mentee.id ? '✓ PIN updated' : '🔑 Set / Reset PIN'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Admin: reassign control */}
                   {adminView && (
                     <div className="no-print">
@@ -358,6 +427,11 @@ export default function MentorDashboard() {
                     {createdUrl}
                   </div>
                 </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-blue-800 mb-1">Their PIN</p>
+                  <p className="text-lg font-mono font-bold text-blue-900 tracking-widest">{newPin}</p>
+                  <p className="text-xs text-blue-700 mt-1">Share this PIN directly with your mentee — they will need it to access their page.</p>
+                </div>
                 <p className="text-xs text-gray-500">
                   This link is their personal Career Compass document. Bookmark it — no login required for them.
                 </p>
@@ -403,6 +477,22 @@ export default function MentorDashboard() {
                     placeholder="e.g. mmoore9241@yahoo.com"
                     className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Access PIN <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={newPin}
+                    onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="6-digit PIN"
+                    required
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Share this PIN directly with your mentee. They will need it to access their page.</p>
                 </div>
 
                 {createError && (

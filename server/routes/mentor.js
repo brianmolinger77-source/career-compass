@@ -143,9 +143,12 @@ router.get('/mentees', requireMentor, async (req, res) => {
 router.post('/mentees', requireMentor, async (req, res) => {
   try {
     await mongoose.connection.asPromise();
-    const { name, email } = req.body;
+    const { name, email, pin } = req.body;
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
+    }
+    if (!pin || !/^\d{6}$/.test(String(pin))) {
+      return res.status(400).json({ error: 'A 6-digit PIN is required' });
     }
 
     const baseSlug = nameToSlug(name);
@@ -161,6 +164,7 @@ router.post('/mentees', requireMentor, async (req, res) => {
           id,
           name,
           email: email || '',
+          pin: String(pin),
           createdAt: now,
           updatedAt: now,
           mentorId: req.session.mentorId,
@@ -308,6 +312,32 @@ router.delete('/mentee/:id/comments/:commentId', requireMentor, async (req, res)
 });
 
 // ── PUT /api/mentor/mentee/:id/assign — superuser only ───────────────────────
+
+router.put('/mentee/:id/pin', requireMentor, async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+    const { pin } = req.body;
+    if (!pin || !/^\d{6}$/.test(String(pin))) {
+      return res.status(400).json({ error: 'A 6-digit PIN is required' });
+    }
+    const mentee = await Mentee.findOne({ id: req.params.id });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+    const isSuperuser = req.session.role === 'superuser';
+    const isAssigned = String(mentee.mentorId) === String(req.session.mentorId);
+    if (!isSuperuser && !isAssigned) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    mentee.pin = String(pin);
+    mentee.updatedAt = new Date();
+    await mentee.save();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error updating PIN:', err);
+    res.status(500).json({ error: 'Failed to update PIN' });
+  }
+});
 
 router.put('/mentee/:id/assign', requireMentor, requireSuperuser, async (req, res) => {
   try {
