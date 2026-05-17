@@ -272,78 +272,6 @@ export default function MenteeView() {
   const hasPSAContent = !!(mentee.passions || mentee.strengths || mentee.aspirations)
   const showResumeBuilder = rolesWithContent.length >= 2 && hasPSAContent
 
-  const CareerThreadField = () => (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-3 my-6">
-      <div>
-        <h3 className="text-base font-bold text-[#1F4E79]">The Thread That Runs Through Your Career</h3>
-        <div className="mt-2 bg-blue-50 border-l-4 border-[#1F4E79] pl-3 py-2 rounded-r text-xs text-gray-700 leading-relaxed">
-          Before generating your narrative, take a moment to reflect. Looking across all the roles you've held, what's the one thing that has consistently shown up — something you've been drawn to, relied on, or that others have counted on you for? Don't overthink it. One or two sentences is enough.
-        </div>
-      </div>
-      <textarea
-        value={careerThread}
-        onChange={e => setCareerThread(e.target.value)}
-        placeholder="Across all my roles, the one consistent thread has been..."
-        rows={3}
-        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
-      />
-    </div>
-  )
-
-  const GenerateButton = () => (
-    <div className="flex flex-col items-center gap-3 my-6 no-print">
-      {showThreadPrompt && !careerThread.trim() && (
-        <div className="w-full max-w-md bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-center space-y-3">
-          <p className="text-sm text-gray-700">
-            You can generate your story now, or take a moment to fill in the career thread above — it helps make the narrative sound more like you.
-          </p>
-          <div className="flex justify-center gap-3">
-            <button
-              onClick={() => handleGenerateNarrative(true)}
-              className="text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors"
-            >
-              Generate Now
-            </button>
-            <button
-              onClick={() => setShowThreadPrompt(false)}
-              className="text-sm text-[#1F4E79] border border-[#1F4E79] hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
-            >
-              Add My Thread First
-            </button>
-          </div>
-        </div>
-      )}
-      <button
-        onClick={() => handleGenerateNarrative(false)}
-        disabled={isGenerating || !hasEnoughRoles}
-        className="bg-[#C65911] hover:bg-[#a34a0e] text-white font-bold text-base px-8 py-3.5 rounded-xl transition-colors disabled:opacity-60 flex items-center gap-3 shadow-md"
-      >
-        {isGenerating ? (
-          <>
-            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            Generating Your Story...
-          </>
-        ) : (
-          <>
-            <span>&#10024;</span>
-            {mentee.generatedNarrative ? 'Regenerate My Story' : 'Generate My Story'}
-          </>
-        )}
-      </button>
-      {!hasEnoughRoles && (
-        <p className="text-xs text-gray-400">Add at least 2 roles to generate your story</p>
-      )}
-      {generateError && (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
-          {generateError}
-        </p>
-      )}
-    </div>
-  )
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -446,8 +374,72 @@ export default function MenteeView() {
 
             {hasEnoughRoles && (
               <>
-                <CareerThreadField />
-                <GenerateButton />
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-3 my-6">
+                  <div>
+                    <h3 className="text-base font-bold text-[#1F4E79]">The Thread That Runs Through Your Career</h3>
+                    <div className="mt-2 bg-blue-50 border-l-4 border-[#1F4E79] pl-3 py-2 rounded-r text-xs text-gray-700 leading-relaxed">
+                      Before generating your narrative, take a moment to reflect. Looking across all the roles you've held, what's the one thing that has consistently shown up — something you've been drawn to, relied on, or that others have counted on you for? Don't overthink it. One or two sentences is enough.
+                    </div>
+                  </div>
+                  <textarea
+                    value={careerThread}
+                    onChange={e => setCareerThread(e.target.value)}
+                    placeholder="Across all my roles, the one consistent thread has been..."
+                    rows={3}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
+                  />
+                </div>
+                <div className="flex flex-col items-center gap-3 my-6 no-print">
+                  {showThreadPrompt && !careerThread.trim() && (
+                    <div className="w-full max-w-md bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-center space-y-3">
+                      <p className="text-sm text-gray-700">
+                        You can generate your story now, or take a moment to fill in the career thread above — it helps make the narrative sound more like you.
+                      </p>
+                      <div className="flex justify-center gap-3">
+                        <button
+                          onClick={() => handleGenerateNarrative(true)}
+                          className="text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Generate Now
+                        </button>
+                        <button
+                          onClick={() => setShowThreadPrompt(false)}
+                          className="text-sm text-[#1F4E79] border border-[#1F4E79] hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
+                        >
+                          Add My Thread First
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => handleGenerateNarrative(false)}
+                    disabled={isGenerating || !hasEnoughRoles}
+                    className="bg-[#C65911] hover:bg-[#a34a0e] text-white font-bold text-base px-8 py-3.5 rounded-xl transition-colors disabled:opacity-60 flex items-center gap-3 shadow-md"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Generating Your Story...
+                      </>
+                    ) : (
+                      <>
+                        <span>&#10024;</span>
+                        {mentee.generatedNarrative ? 'Regenerate My Story' : 'Generate My Story'}
+                      </>
+                    )}
+                  </button>
+                  {!hasEnoughRoles && (
+                    <p className="text-xs text-gray-400">Add at least 2 roles to generate your story</p>
+                  )}
+                  {generateError && (
+                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                      {generateError}
+                    </p>
+                  )}
+                </div>
               </>
             )}
           </section>
@@ -495,8 +487,72 @@ export default function MenteeView() {
         {/* Career thread + Generate button at bottom of document */}
         {roles.length > 0 && (
           <>
-            <CareerThreadField />
-            <GenerateButton />
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-3 my-6">
+              <div>
+                <h3 className="text-base font-bold text-[#1F4E79]">The Thread That Runs Through Your Career</h3>
+                <div className="mt-2 bg-blue-50 border-l-4 border-[#1F4E79] pl-3 py-2 rounded-r text-xs text-gray-700 leading-relaxed">
+                  Before generating your narrative, take a moment to reflect. Looking across all the roles you've held, what's the one thing that has consistently shown up — something you've been drawn to, relied on, or that others have counted on you for? Don't overthink it. One or two sentences is enough.
+                </div>
+              </div>
+              <textarea
+                value={careerThread}
+                onChange={e => setCareerThread(e.target.value)}
+                placeholder="Across all my roles, the one consistent thread has been..."
+                rows={3}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
+              />
+            </div>
+            <div className="flex flex-col items-center gap-3 my-6 no-print">
+              {showThreadPrompt && !careerThread.trim() && (
+                <div className="w-full max-w-md bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-center space-y-3">
+                  <p className="text-sm text-gray-700">
+                    You can generate your story now, or take a moment to fill in the career thread above — it helps make the narrative sound more like you.
+                  </p>
+                  <div className="flex justify-center gap-3">
+                    <button
+                      onClick={() => handleGenerateNarrative(true)}
+                      className="text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Generate Now
+                    </button>
+                    <button
+                      onClick={() => setShowThreadPrompt(false)}
+                      className="text-sm text-[#1F4E79] border border-[#1F4E79] hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Add My Thread First
+                    </button>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => handleGenerateNarrative(false)}
+                disabled={isGenerating || !hasEnoughRoles}
+                className="bg-[#C65911] hover:bg-[#a34a0e] text-white font-bold text-base px-8 py-3.5 rounded-xl transition-colors disabled:opacity-60 flex items-center gap-3 shadow-md"
+              >
+                {isGenerating ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Generating Your Story...
+                  </>
+                ) : (
+                  <>
+                    <span>&#10024;</span>
+                    {mentee.generatedNarrative ? 'Regenerate My Story' : 'Generate My Story'}
+                  </>
+                )}
+              </button>
+              {!hasEnoughRoles && (
+                <p className="text-xs text-gray-400">Add at least 2 roles to generate your story</p>
+              )}
+              {generateError && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                  {generateError}
+                </p>
+              )}
+            </div>
           </>
         )}
 
