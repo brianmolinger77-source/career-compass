@@ -597,7 +597,7 @@ Analyze the job posting against the veteran's profile and return four buckets:
 
 **ALIGNS** — Specific, concrete connections between what the posting describes and what appears in the veteran's profile. Name both the posting element and the profile element it connects to. If no clear alignments exist, return an empty array — do not manufacture encouragement.
 
-**DIFFERENCES** — Gaps or mismatches worth noting but not direct conflicts. Frame these neutrally as observations, not problems. Things worth being aware of or asking about.
+**DIFFERENCES** — Gaps or mismatches between this posting and this veteran's specific profile that are worth noting but are not direct conflicts. Each difference must be grounded in something specific in the posting and something specific in the profile — not generic observations that would apply to any veteran making a military-to-civilian transition. Do not surface differences like "civilian vs military environment" or "corporate culture adjustment" — these are universal and add no value. Frame genuine differences neutrally as observations, not problems.
 
 **UNKNOWNS** — Things the posting implies but doesn't explicitly state, where the profile also doesn't give enough to assess. Frame these as questions worth asking the employer or thinking through before applying.
 
