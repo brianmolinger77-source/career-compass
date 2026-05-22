@@ -111,6 +111,13 @@ export default function PassionsStrengthsAspirations({
             ))}
           </div>
 
+          {/* Passions quality bar */}
+          {section.key === 'passions' && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed no-print">
+              Be honest here, not aspirational. A passion isn't what you think you should enjoy — it's what actually charges your battery. The best signal: what work have you done beyond what's required, just because it interested you? Start there.
+            </p>
+          )}
+
           {/* Strengths-specific helper line */}
           {section.key === 'strengths' && (
             <p className="text-xs text-gray-400 italic">
