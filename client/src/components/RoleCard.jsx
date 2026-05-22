@@ -12,6 +12,14 @@ function evaluateImpact(text) {
   return QUANTIFIER.test(text) && OUTCOME_WORDS.test(text) && wordCount >= 30
 }
 
+const WHAT_I_DID_SCALE = /\d|\b(team|budget|responsible|managed|led|oversaw|supported|personnel|soldiers|sailors|airmen|staff|reports)\b/i
+
+function evaluateWhatIDid(text) {
+  if (!text) return false
+  const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length
+  return WHAT_I_DID_SCALE.test(text) && wordCount >= 30
+}
+
 const FIELD_DEFINITIONS = {
   whatIDid: {
     label: 'What I Did',
@@ -55,6 +63,11 @@ export default function RoleCard({
     if (!impact.trim()) return 'unstarted'
     return evaluateImpact(impact) ? 'complete' : 'in-progress'
   })
+  const [whatIDidQualityState, setWhatIDidQualityState] = useState(() => {
+    const whatIDid = role.whatIDid || ''
+    if (!whatIDid.trim()) return 'unstarted'
+    return evaluateWhatIDid(whatIDid) ? 'complete' : 'in-progress'
+  })
   const debounceTimers = useRef({})
 
   function handleFieldChange(field, value) {
@@ -71,6 +84,9 @@ export default function RoleCard({
     if (field === 'impact') {
       setImpactQualityState(prev => (prev === 'unstarted' || prev === 'complete') ? 'in-progress' : prev)
     }
+    if (field === 'whatIDid') {
+      setWhatIDidQualityState(prev => (prev === 'unstarted' || prev === 'complete') ? 'in-progress' : prev)
+    }
 
     // Debounce autosave
     if (debounceTimers.current[field]) clearTimeout(debounceTimers.current[field])
@@ -85,6 +101,15 @@ export default function RoleCard({
       setImpactQualityState('unstarted')
     } else if (evaluateImpact(text)) {
       setImpactQualityState('complete')
+    }
+  }
+
+  function handleWhatIDidBlur(value) {
+    const text = value || ''
+    if (!text.trim()) {
+      setWhatIDidQualityState('unstarted')
+    } else if (evaluateWhatIDid(text)) {
+      setWhatIDidQualityState('complete')
     }
   }
 
@@ -238,6 +263,7 @@ export default function RoleCard({
       {['whatIDid', 'howIDidIt', 'impact'].map(field => {
         const def = FIELD_DEFINITIONS[field]
         const isImpact = field === 'impact'
+        const isWhatIDid = field === 'whatIDid'
         return (
           <div key={field} className="space-y-1.5">
             <div className="flex items-center gap-2">
@@ -251,6 +277,26 @@ export default function RoleCard({
 
             {/* Helper prompt text */}
             <p className="text-xs text-gray-400 italic">{def.placeholder}</p>
+
+            {/* What I Did quality bar */}
+            {isWhatIDid && (
+              <>
+                <div className={`overflow-hidden transition-all duration-500 ease-in-out no-print ${
+                  whatIDidQualityState === 'complete' ? 'max-h-0 opacity-0' : 'max-h-40 opacity-100'
+                }`}>
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+                    Think scope and scale, not job duties. Any hiring manager can read a job description. What they can't read anywhere else is the size of what you were responsible for — how many people, how much budget, how large a geographic footprint, how consequential the mission. Lead with that.
+                  </p>
+                </div>
+                <div className={`overflow-hidden transition-all duration-500 ease-in-out no-print ${
+                  whatIDidQualityState === 'complete' ? 'max-h-16 opacity-100' : 'max-h-0 opacity-0'
+                }`}>
+                  <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    A hiring manager can see the size of what you carried.
+                  </p>
+                </div>
+              </>
+            )}
 
             {/* Impact quality bar */}
             {isImpact && (
@@ -275,7 +321,11 @@ export default function RoleCard({
             <textarea
               value={localRole[field] || ''}
               onChange={e => handleFieldChange(field, e.target.value)}
-              onBlur={isImpact ? e => handleImpactBlur(e.target.value) : undefined}
+              onBlur={
+                isImpact ? e => handleImpactBlur(e.target.value) :
+                isWhatIDid ? e => handleWhatIDidBlur(e.target.value) :
+                undefined
+              }
               rows={4}
               className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
             />
