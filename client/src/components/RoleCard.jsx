@@ -3,6 +3,15 @@ import AIFeedbackPanel from './AIFeedbackPanel'
 import MentorComment from './MentorComment'
 import { analyzeRole } from '../utils/api'
 
+const OUTCOME_WORDS = /\b(improved|reduced|saved|built|increased|decreased|delivered|cut|grew|launched)\b/i
+const QUANTIFIER = /[\d%$]|\b(millions?|billions?|thousands?|hundreds?|dozens?)\b/i
+
+function evaluateImpact(text) {
+  if (!text) return false
+  const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length
+  return QUANTIFIER.test(text) && OUTCOME_WORDS.test(text) && wordCount >= 30
+}
+
 const FIELD_DEFINITIONS = {
   whatIDid: {
     label: 'What I Did',
@@ -41,6 +50,11 @@ export default function RoleCard({
   const [analyzeError, setAnalyzeError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [hasEditedSinceAnalysis, setHasEditedSinceAnalysis] = useState(false)
+  const [impactQualityState, setImpactQualityState] = useState(() => {
+    const impact = role.impact || ''
+    if (!impact.trim()) return 'unstarted'
+    return evaluateImpact(impact) ? 'complete' : 'in-progress'
+  })
   const debounceTimers = useRef({})
 
   function handleFieldChange(field, value) {
@@ -54,11 +68,24 @@ export default function RoleCard({
     const updated = { ...localRole, ...patch }
     setLocalRole(updated)
 
+    if (field === 'impact') {
+      setImpactQualityState(prev => (prev === 'unstarted' || prev === 'complete') ? 'in-progress' : prev)
+    }
+
     // Debounce autosave
     if (debounceTimers.current[field]) clearTimeout(debounceTimers.current[field])
     debounceTimers.current[field] = setTimeout(() => {
       onUpdate(role.id, patch)
     }, 1500)
+  }
+
+  function handleImpactBlur(value) {
+    const text = value || ''
+    if (!text.trim()) {
+      setImpactQualityState('unstarted')
+    } else if (evaluateImpact(text)) {
+      setImpactQualityState('complete')
+    }
   }
 
   async function handleAnalyze() {
@@ -210,6 +237,7 @@ export default function RoleCard({
       {/* Three text areas */}
       {['whatIDid', 'howIDidIt', 'impact'].map(field => {
         const def = FIELD_DEFINITIONS[field]
+        const isImpact = field === 'impact'
         return (
           <div key={field} className="space-y-1.5">
             <div className="flex items-center gap-2">
@@ -224,9 +252,30 @@ export default function RoleCard({
             {/* Helper prompt text */}
             <p className="text-xs text-gray-400 italic">{def.placeholder}</p>
 
+            {/* Impact quality bar */}
+            {isImpact && (
+              <>
+                <div className={`overflow-hidden transition-all duration-500 ease-in-out no-print ${
+                  impactQualityState === 'complete' ? 'max-h-0 opacity-0' : 'max-h-40 opacity-100'
+                }`}>
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+                    Most candidates never connect what they did to what changed — and closing that gap is where you become memorable. A hiring manager who can picture the scale of your work and its result starts to see you as a real person, not a resume. Specific numbers, even honest estimates, make that picture vivid.
+                  </p>
+                </div>
+                <div className={`overflow-hidden transition-all duration-500 ease-in-out no-print ${
+                  impactQualityState === 'complete' ? 'max-h-16 opacity-100' : 'max-h-0 opacity-0'
+                }`}>
+                  <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    This gives a hiring manager something to picture.
+                  </p>
+                </div>
+              </>
+            )}
+
             <textarea
               value={localRole[field] || ''}
               onChange={e => handleFieldChange(field, e.target.value)}
+              onBlur={isImpact ? e => handleImpactBlur(e.target.value) : undefined}
               rows={4}
               className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
             />
