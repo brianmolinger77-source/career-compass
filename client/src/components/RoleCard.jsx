@@ -20,6 +20,14 @@ function evaluateWhatIDid(text) {
   return WHAT_I_DID_SCALE.test(text) && wordCount >= 30
 }
 
+const HOW_I_DID_IT_JUDGMENT = /\b(decided|chose|prioritized|asked|listened|considered|recognized|realized|noticed|assessed|evaluated|determined|approached|communicated|understood|identified|questioned|balanced)\b/i
+
+function evaluateHowIDidIt(text) {
+  if (!text) return false
+  const wordCount = text.trim().split(/\s+/).filter(w => w.length > 0).length
+  return HOW_I_DID_IT_JUDGMENT.test(text) && wordCount >= 30
+}
+
 const FIELD_DEFINITIONS = {
   whatIDid: {
     label: 'What I Did',
@@ -68,6 +76,11 @@ export default function RoleCard({
     if (!whatIDid.trim()) return 'unstarted'
     return evaluateWhatIDid(whatIDid) ? 'complete' : 'in-progress'
   })
+  const [howIDidItQualityState, setHowIDidItQualityState] = useState(() => {
+    const howIDidIt = role.howIDidIt || ''
+    if (!howIDidIt.trim()) return 'unstarted'
+    return evaluateHowIDidIt(howIDidIt) ? 'complete' : 'in-progress'
+  })
   const debounceTimers = useRef({})
 
   function handleFieldChange(field, value) {
@@ -86,6 +99,9 @@ export default function RoleCard({
     }
     if (field === 'whatIDid') {
       setWhatIDidQualityState(prev => (prev === 'unstarted' || prev === 'complete') ? 'in-progress' : prev)
+    }
+    if (field === 'howIDidIt') {
+      setHowIDidItQualityState(prev => (prev === 'unstarted' || prev === 'complete') ? 'in-progress' : prev)
     }
 
     // Debounce autosave
@@ -110,6 +126,15 @@ export default function RoleCard({
       setWhatIDidQualityState('unstarted')
     } else if (evaluateWhatIDid(text)) {
       setWhatIDidQualityState('complete')
+    }
+  }
+
+  function handleHowIDidItBlur(value) {
+    const text = value || ''
+    if (!text.trim()) {
+      setHowIDidItQualityState('unstarted')
+    } else if (evaluateHowIDidIt(text)) {
+      setHowIDidItQualityState('complete')
     }
   }
 
@@ -264,6 +289,7 @@ export default function RoleCard({
         const def = FIELD_DEFINITIONS[field]
         const isImpact = field === 'impact'
         const isWhatIDid = field === 'whatIDid'
+        const isHowIDidIt = field === 'howIDidIt'
         return (
           <div key={field} className="space-y-1.5">
             <div className="flex items-center gap-2">
@@ -277,6 +303,26 @@ export default function RoleCard({
 
             {/* Helper prompt text */}
             <p className="text-xs text-gray-400 italic">{def.placeholder}</p>
+
+            {/* How I Did It quality bar */}
+            {isHowIDidIt && (
+              <>
+                <div className={`overflow-hidden transition-all duration-500 ease-in-out no-print ${
+                  howIDidItQualityState === 'complete' ? 'max-h-0 opacity-0' : 'max-h-48 opacity-100'
+                }`}>
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+                    This field tells a hiring manager who you are, not just what you did. When they ask how you handled a difficult situation, they're not checking a box — they're learning how you think, how you communicate, and how you treat people. Did you consider their perspective before acting? What questions did you ask? What did you decide and why?
+                  </p>
+                </div>
+                <div className={`overflow-hidden transition-all duration-500 ease-in-out no-print ${
+                  howIDidItQualityState === 'complete' ? 'max-h-16 opacity-100' : 'max-h-0 opacity-0'
+                }`}>
+                  <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    A hiring manager is starting to see how you think.
+                  </p>
+                </div>
+              </>
+            )}
 
             {/* What I Did quality bar */}
             {isWhatIDid && (
@@ -324,6 +370,7 @@ export default function RoleCard({
               onBlur={
                 isImpact ? e => handleImpactBlur(e.target.value) :
                 isWhatIDid ? e => handleWhatIDidBlur(e.target.value) :
+                isHowIDidIt ? e => handleHowIDidItBlur(e.target.value) :
                 undefined
               }
               rows={4}
