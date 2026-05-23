@@ -59,6 +59,7 @@ app.use((err, req, res, next) => {
 const CLIENT_DIST = path.join(__dirname, '../client/dist');
 app.use(express.static(CLIENT_DIST));
 app.get('*', (req, res) => {
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(CLIENT_DIST, 'index.html'));
 });
 
