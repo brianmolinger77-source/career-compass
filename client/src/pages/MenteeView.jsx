@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth } from '../utils/api'
+import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA } from '../utils/api'
 import RoleCard from '../components/RoleCard'
 import VennDiagram from '../components/VennDiagram'
 import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirations'
@@ -38,6 +38,9 @@ export default function MenteeView() {
   const [careerThread, setCareerThread] = useState('')
   const [showThreadPrompt, setShowThreadPrompt] = useState(false)
   const [psaAnalysis, setPSAAnalysis] = useState(null)
+  const [isAnalyzingPSA, setIsAnalyzingPSA] = useState(false)
+  const [psaError, setPSAError] = useState(null)
+  const psaOutputRef = useRef(null)
   const [jobPostingText, setJobPostingText] = useState('')
   const [jobAnalysis, setJobAnalysis] = useState(null)
   const [isEvaluating, setIsEvaluating] = useState(false)
@@ -175,6 +178,31 @@ export default function MenteeView() {
     setPSAAnalysis(analysis)
     if (updatedMentee) setMentee(updatedMentee)
   }
+
+  async function handleAnalyzePSA() {
+    setIsAnalyzingPSA(true)
+    setPSAError(null)
+    let lastErr
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const result = await analyzePSA(mentee.id)
+        handlePSAAnalysisComplete(result.analysis, result.mentee)
+        setIsAnalyzingPSA(false)
+        return
+      } catch (err) {
+        lastErr = err
+        if (attempt < 3) await new Promise(r => setTimeout(r, 1500))
+      }
+    }
+    setPSAError('Analysis unavailable right now — try again in a moment.')
+    setIsAnalyzingPSA(false)
+  }
+
+  useEffect(() => {
+    if (psaAnalysis && psaOutputRef.current) {
+      psaOutputRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [psaAnalysis])
 
   async function handlePinSubmit() {
     setPinError(null)
@@ -468,6 +496,7 @@ export default function MenteeView() {
               onUpdate={handleUpdate}
               onPSAAnalysisComplete={handlePSAAnalysisComplete}
               isMentorView={false}
+              showAnalyzeButton={false}
             />
 
             <TableStakes
@@ -476,8 +505,36 @@ export default function MenteeView() {
               isMentorView={false}
             />
 
+            {/* Analyze button sits immediately above the output panel it triggers */}
+            {mentee.passions?.trim() && mentee.strengths?.trim() && mentee.aspirations?.trim() && (
+              <div className="flex flex-col items-center gap-3 pt-2 no-print">
+                <button
+                  onClick={handleAnalyzePSA}
+                  disabled={isAnalyzingPSA}
+                  className="bg-[#1F4E79] hover:bg-[#163d5e] text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
+                >
+                  {isAnalyzingPSA ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>&#10022; Analyze My Passions, Strengths &amp; Aspirations</>
+                  )}
+                </button>
+                {psaError && (
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    {psaError}
+                  </p>
+                )}
+              </div>
+            )}
+
             {psaAnalysis && (
-              <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+              <div ref={psaOutputRef} className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
                 <PSAAnalysisPanel psaAnalysis={psaAnalysis} isMentorView={false} />
               </div>
             )}

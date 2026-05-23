@@ -45,7 +45,8 @@ export default function PassionsStrengthsAspirations({
   mentorComments = [],
   onAddComment,
   onUpdateComment,
-  onDeleteComment
+  onDeleteComment,
+  showAnalyzeButton = true
 }) {
   const [localData, setLocalData] = useState({
     passions: menteeData.passions || '',
@@ -151,7 +152,7 @@ export default function PassionsStrengthsAspirations({
       ))}
 
       {/* PSA Cross-Section Analyze Button — shown after all three sections are filled */}
-      {allThreeFilled && (
+      {showAnalyzeButton && allThreeFilled && (
         <div className="flex flex-col items-center gap-3 pt-2 no-print">
           <button
             onClick={handleAnalyzePSA}
