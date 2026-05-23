@@ -40,7 +40,9 @@ export default function MenteeView() {
   const [psaAnalysis, setPSAAnalysis] = useState(null)
   const [isAnalyzingPSA, setIsAnalyzingPSA] = useState(false)
   const [psaError, setPSAError] = useState(null)
+  const [narrativeGenerated, setNarrativeGenerated] = useState(false)
   const psaOutputRef = useRef(null)
+  const narrativeRef = useRef(null)
   const [jobPostingText, setJobPostingText] = useState('')
   const [jobAnalysis, setJobAnalysis] = useState(null)
   const [isEvaluating, setIsEvaluating] = useState(false)
@@ -167,6 +169,7 @@ export default function MenteeView() {
         strength: result.narrativeStrength,
         refinement: result.refinementNote
       })
+      setNarrativeGenerated(true)
     } catch (err) {
       setGenerateError('Story generation unavailable right now — try again in a moment.')
     } finally {
@@ -203,6 +206,12 @@ export default function MenteeView() {
       psaOutputRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [psaAnalysis])
+
+  useEffect(() => {
+    if (narrativeGenerated && narrativeRef.current) {
+      narrativeRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [narrativeGenerated])
 
   async function handlePinSubmit() {
     setPinError(null)
@@ -615,7 +624,7 @@ export default function MenteeView() {
 
         {/* Narrative */}
         {mentee.generatedNarrative && (
-          <section>
+          <section ref={narrativeRef}>
             <NarrativeCard
               narrative={mentee.generatedNarrative}
               themes={mentee.themes || []}
