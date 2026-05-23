@@ -40,6 +40,7 @@ export default function MenteeView() {
   const [psaAnalysis, setPSAAnalysis] = useState(null)
   const [isAnalyzingPSA, setIsAnalyzingPSA] = useState(false)
   const [psaError, setPSAError] = useState(null)
+  const [psaAnalysisGenerated, setPSAAnalysisGenerated] = useState(false)
   const [narrativeGenerated, setNarrativeGenerated] = useState(false)
   const psaOutputRef = useRef(null)
   const narrativeRef = useRef(null)
@@ -190,6 +191,7 @@ export default function MenteeView() {
       try {
         const result = await analyzePSA(mentee.id)
         handlePSAAnalysisComplete(result.analysis, result.mentee)
+        setPSAAnalysisGenerated(true)
         setIsAnalyzingPSA(false)
         return
       } catch (err) {
@@ -202,10 +204,10 @@ export default function MenteeView() {
   }
 
   useEffect(() => {
-    if (psaAnalysis && psaOutputRef.current) {
+    if (psaAnalysisGenerated && psaOutputRef.current) {
       psaOutputRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [psaAnalysis])
+  }, [psaAnalysisGenerated])
 
   useEffect(() => {
     if (narrativeGenerated && narrativeRef.current) {
