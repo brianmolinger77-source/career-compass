@@ -380,7 +380,7 @@ Write exactly 3 sentences. No more, no fewer.
 
 Sentence 1 — Professional identity: Lead with their strongest differentiator. Who are they at their best? Do NOT start with "I", "I'm", or "I am". Open with a strong declarative statement about their professional value (e.g. "A proven operations leader who...", "Recognized for...", "Trusted by...").
 
-Sentence 2 — What they bring: Their most compelling and specific combination of skills, experiences, or achievements that a hiring manager would find distinctive and memorable — not a generic list of buzzwords.
+Sentence 2 — Proof: One specific quantified achievement that proves the claim in Sentence 1. If no metrics exist in the source material, name the most concrete and specific thing that changed because of their work.
 
 Sentence 3 — What they are seeking: A concrete, forward-looking statement about the type of role, contribution, or environment they are targeting.
 
@@ -394,6 +394,10 @@ For each role provided, generate exactly 3–4 strong bullet points:
 - One to two lines maximum per bullet
 - Do NOT end bullets with a period
 - Prioritize leadership, business impact, and scale over task lists
+- Never use "we" or "our team" — hiring managers need to understand this person's specific contribution and role in the outcome. Attribute every action directly to the veteran. This is not about taking sole credit — it is about clarity.
+- If no metrics exist, describe what specifically changed or was delivered — not just what the veteran did
+
+VETERAN CONTEXT: This person served in the US military. Their instinct is to credit the team over themselves and to use language only insiders understand. Your job is to surface their individual contribution in plain civilian language. Translate rank, unit designations, and military acronyms into civilian equivalents. "Battalion" becomes "500-person organization." "OIC" becomes "officer in charge." Write for a hiring manager who has never served.
 
 Return ONLY valid JSON in this exact format, with no extra text before or after:
 {
@@ -479,7 +483,10 @@ router.post('/regenerate-summary', async (req, res) => {
     }
 
     const rolesText = (mentee.roles || []).map(role =>
-      `${role.title || 'Untitled'} at ${role.organization || 'Unknown'} (${role.startYear || '?'}–${role.endYear || 'Present'}): ${role.whatIDid || ''} ${role.howIDidIt || ''} ${role.impact || ''}`.trim()
+      `${role.title || 'Untitled'} at ${role.organization || 'Unknown'} (${role.startYear || '?'}–${role.endYear || 'Present'}):
+What I Did: ${role.whatIDid || ''}
+How I Did It: ${role.howIDidIt || ''}
+Impact: ${role.impact || ''}`.trim()
     ).join('\n');
 
     const systemPrompt = `Write a Professional Summary of exactly 3 sentences for a resume. Maximum 60 words total.
