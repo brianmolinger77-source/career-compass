@@ -174,7 +174,7 @@ STRENGTHS VALIDATION CHECK:
 Review the strengths section. If it appears to contain only self-declared attributes (phrases like "I am good at", "I have always been", "I excel at") with no external validation language (no phrases like "told me", "feedback", "recognized", "praised", "said I was", "my supervisor", "my colleague", "my teammate"), set a flag to include a note about this in the refinementNote.
 
 After the narrative, provide:
-- 3-5 Career Themes: recurring strengths or competitive differentiators you detected across their roles. These should be specific and distinctive — not generic (e.g., "Translating complexity into clear action for diverse audiences" not just "Communication skills"). These themes are what will inform their resume bullets and interview answer bank.
+- 3-5 Career Themes: recurring strengths or competitive differentiators you detected across their roles. These should be specific and distinctive noun phrases — not generic, and not gerunds starting with "-ing" verbs (e.g., "Cross-functional operational leadership" not "Leading cross-functional teams"; "Data-driven decision support" not "Translating data into decisions"). These themes appear as Core Competencies on the veteran's resume, so they must read as professional resume credentials, not activity descriptions.
 - A brief note on what is strongest about this narrative
 - One specific suggestion for how they might refine it further
 
