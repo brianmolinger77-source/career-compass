@@ -454,6 +454,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
     const now = new Date();
     mentee.resumeBullets = result.bullets;
     mentee.resumeSummary = result.summary || '';
+    mentee.resumeSkills = mentee.themes || [];
     mentee.resumeGeneratedAt = now;
     mentee.updatedAt = now;
     mentee.markModified('resumeBullets');
