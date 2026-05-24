@@ -191,6 +191,7 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
     try {
       const result = await generateResumeBullets(mentee.id)
       setLocalBullets(result.roleBullets)
+      if (result.mentee?.resumeSkills) setLocalSkills(result.mentee.resumeSkills)
       if (result.resumeSummary) setLocalSummary(result.resumeSummary)
     } catch (err) {
       setGenerateError('Resume generation unavailable right now — try again in a moment.')
