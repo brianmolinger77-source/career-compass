@@ -66,10 +66,10 @@ export function getMentees() {
   return request('/api/mentor/mentees')
 }
 
-export function createMentee(name, email, pin) {
+export function createMentee(name, email, pin, branch) {
   return request('/api/mentor/mentees', {
     method: 'POST',
-    body: JSON.stringify({ name, email, pin })
+    body: JSON.stringify({ name, email, pin, militaryBranch: branch || '' })
   })
 }
 

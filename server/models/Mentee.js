@@ -42,6 +42,7 @@ const menteeSchema = new mongoose.Schema({
   id:                   { type: String, required: true, unique: true },
   name:                 { type: String, required: true },
   email:                { type: String, default: '' },
+  militaryBranch:      { type: String, default: '' },
   createdAt:            { type: Date },
   updatedAt:            { type: Date },
   roles:                { type: [roleSchema], default: [] },

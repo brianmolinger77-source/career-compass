@@ -76,6 +76,7 @@ Return your response as JSON in this exact format:
 
     const userMessage = `Please analyze this role entry from a military veteran's career document:
 
+${mentee.militaryBranch ? `Military branch: ${mentee.militaryBranch}\n` : ''}
 **What I Did:**
 ${whatIDid || '(not provided)'}
 
@@ -207,6 +208,7 @@ Return as JSON:
 
     const userMessage = `Here is ${mentee.name}'s career history and self-assessment:
 
+${mentee.militaryBranch ? `Military branch: ${mentee.militaryBranch}\n` : ''}
 CAREER HISTORY:
 ${rolesText || 'No roles provided'}
 
@@ -307,6 +309,7 @@ Return as JSON:
 
     const userMessage = `Please analyze this veteran's Passions, Strengths, and Aspirations self-assessment:
 
+${mentee.militaryBranch ? `Military branch: ${mentee.militaryBranch}\n` : ''}
 PASSIONS:
 ${mentee.passions || '(not provided)'}
 
@@ -439,6 +442,7 @@ Include every roleId provided. Generate exactly 3–4 bullets per role.`;
 
     const userMessage = `Generate a professional summary and resume bullets for ${mentee.name}.
 
+${mentee.militaryBranch ? `Military branch: ${mentee.militaryBranch}\n` : ''}
 CAREER HISTORY:
 ${rolesText}
 
@@ -534,6 +538,7 @@ Return ONLY valid JSON: {"summary": "Sentence 1. Sentence 2. Sentence 3."}`;
 
     const userMessage = `Generate a 3-sentence professional summary for ${mentee.name}.
 
+${mentee.militaryBranch ? `Military branch: ${mentee.militaryBranch}\n` : ''}
 ${mentee.themes?.length ? `Career themes: ${mentee.themes.join(', ')}\n` : ''}
 CAREER HISTORY:
 ${rolesText || 'Not provided'}
@@ -661,6 +666,7 @@ Return ONLY valid JSON in this exact format:
 
     const userMessage = `Here is the veteran's career profile:
 
+${mentee.militaryBranch ? `Military branch: ${mentee.militaryBranch}\n` : ''}
 ${profileText}
 
 Here is the job posting to evaluate:

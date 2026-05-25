@@ -144,7 +144,7 @@ router.get('/mentees', requireMentor, async (req, res) => {
 router.post('/mentees', requireMentor, async (req, res) => {
   try {
     await mongoose.connection.asPromise();
-    const { name, email, pin } = req.body;
+      const { name, email, pin, militaryBranch } = req.body;
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
     }
@@ -165,6 +165,7 @@ router.post('/mentees', requireMentor, async (req, res) => {
           id,
           name,
           email: email || '',
+            militaryBranch: militaryBranch || '',
           pin: String(pin),
           createdAt: now,
           updatedAt: now,
