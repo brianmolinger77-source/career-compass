@@ -608,25 +608,25 @@ export default function MentorDashboard() {
                   />
                   <p className="text-xs text-gray-400 mt-1">Share this PIN directly with your mentee. They will need it to access their page.</p>
                 </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Military Branch
-                    </label>
-                    <select
-                      value={newBranch}
-                      onChange={e => setNewBranch(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
-                    >
-                      <option value="">Select branch (optional)</option>
-                      <option value="U.S. Army">U.S. Army</option>
-                      <option value="U.S. Navy">U.S. Navy</option>
-                      <option value="U.S. Marine Corps">U.S. Marine Corps</option>
-                      <option value="U.S. Air Force">U.S. Air Force</option>
-                      <option value="U.S. Coast Guard">U.S. Coast Guard</option>
-                      <option value="U.S. Space Force">U.S. Space Force</option>
-                      <option value="Other">Other</option>
-                    </select>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Military Branch
+                  </label>
+                  <select
+                    value={newBranch}
+                    onChange={e => setNewBranch(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
+                  >
+                    <option value="">Select branch (optional)</option>
+                    <option value="U.S. Army">U.S. Army</option>
+                    <option value="U.S. Navy">U.S. Navy</option>
+                    <option value="U.S. Marine Corps">U.S. Marine Corps</option>
+                    <option value="U.S. Air Force">U.S. Air Force</option>
+                    <option value="U.S. Coast Guard">U.S. Coast Guard</option>
+                    <option value="U.S. Space Force">U.S. Space Force</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
 
                 {createError && (
                   <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
