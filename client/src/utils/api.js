@@ -148,3 +148,7 @@ export function evaluateJobPosting(menteeId, jobPostingText) {
     body: JSON.stringify({ menteeId, jobPostingText })
   })
 }
+
+export function getUsageStats() {
+  return request('/api/mentor/usage')
+}

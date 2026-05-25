@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getMentees, createMentee, logout, checkAuth, getMentors, assignMentee, updateMenteePin } from '../utils/api'
+import { getMentees, createMentee, logout, checkAuth, getMentors, assignMentee, updateMenteePin, getUsageStats } from '../utils/api'
 
 function calcCompletion(mentee) {
   const roles = mentee.roles || []
@@ -60,6 +60,9 @@ export default function MentorDashboard() {
   const [pinEditing, setPinEditing] = useState(null)
   const [pinValue, setPinValue] = useState('')
   const [pinSaving, setPinSaving] = useState(false)
+  const [usageView, setUsageView] = useState(false)
+  const [usageData, setUsageData] = useState(null)
+  const [usageLoading, setUsageLoading] = useState(false)
   const [pinError, setPinError] = useState('')
   const [pinSuccess, setPinSuccess] = useState(null)
   const navigate = useNavigate()
@@ -174,6 +177,16 @@ export default function MentorDashboard() {
 
   const isSuperuser = role === 'superuser'
 
+  useEffect(() => {
+    if (usageView && isSuperuser) {
+      setUsageLoading(true)
+      getUsageStats()
+        .then(data => setUsageData(data))
+        .catch(err => console.error('Failed to load usage stats:', err))
+        .finally(() => setUsageLoading(false))
+    }
+  }, [usageView, isSuperuser])
+
   // In "My Mentees" mode, superuser sees only their own mentees
   const visibleMentees = (isSuperuser && !adminView)
     ? mentees.filter(m => m.mentorId === sessionMentorId)
@@ -206,7 +219,7 @@ export default function MentorDashboard() {
         {isSuperuser && (
           <div className="flex gap-2 mb-6 no-print">
             <button
-              onClick={() => setAdminView(false)}
+                onClick={() => { setAdminView(false); setUsageView(false); }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 !adminView
                   ? 'bg-[#1F4E79] text-white'
@@ -216,7 +229,7 @@ export default function MentorDashboard() {
               My Mentees
             </button>
             <button
-              onClick={handleSwitchToAdmin}
+                onClick={() => { handleSwitchToAdmin(); setUsageView(false); }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 adminView
                   ? 'bg-[#1F4E79] text-white'
@@ -225,6 +238,105 @@ export default function MentorDashboard() {
             >
               All Mentees + Admin
             </button>
+              <button
+                onClick={() => { setUsageView(true); setAdminView(false); }}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  usageView
+                    ? 'bg-[#1F4E79] text-white'
+                    : 'bg-white border border-gray-300 text-gray-600 hover:border-[#1F4E79] hover:text-[#1F4E79]'
+                }`}
+              >
+                Cost &amp; Usage
+              </button>
+          </div>
+        )}
+
+        {/* Cost & Usage Panel */}
+        {usageView && isSuperuser && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Cost &amp; Usage</h2>
+            <p className="text-sm text-gray-500 mb-6">AI token usage logged since May 25, 2026. Pricing reflects Anthropic published rates as of May 2026 and should be updated if pricing changes.</p>
+
+            {usageLoading && <div className="text-gray-400 py-8 text-center">Loading usage data...</div>}
+
+            {!usageLoading && usageData && (() => {
+              const INPUT_COST_PER_M = 3.00
+              const OUTPUT_COST_PER_M = 15.00
+              const calcCost = (inp, out, mult) =>
+                ((inp / 1_000_000) * INPUT_COST_PER_M + (out / 1_000_000) * OUTPUT_COST_PER_M) * mult
+              const endpoints = Object.entries(usageData.byEndpoint || {})
+              const totalCost = calcCost(usageData.totalInputTokens, usageData.totalOutputTokens, 1)
+              const perMentee = usageData.distinctMentees > 0 ? totalCost / usageData.distinctMentees : 0
+
+              return (
+                <>
+                  {/* Summary row */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                    {[{label: "Total Calls", value: usageData.totalCalls},
+                      {label: "Input Tokens", value: usageData.totalInputTokens?.toLocaleString()},
+                      {label: "Output Tokens", value: usageData.totalOutputTokens?.toLocaleString()},
+                      {label: "Cost at Current Rates", value: `$${totalCost.toFixed(4)}`}
+                    ].map(({label, value}) => (
+                      <div key={label} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <div className="text-xs text-gray-500 mb-1">{label}</div>
+                        <div className="text-xl font-bold text-gray-900">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Per-mentee average */}
+                  <div className="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                    <span className="text-sm font-semibold text-[#1F4E79]">Per-mentee average (current rates): </span>
+                    <span className="text-sm text-gray-700">${perMentee.toFixed(4)} across {usageData.distinctMentees} mentee{usageData.distinctMentees !== 1 ? "s" : ""} with AI activity</span>
+                  </div>
+
+                  {/* By-endpoint table */}
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Usage by endpoint</h3>
+                  <div className="overflow-x-auto mb-8">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          {["Endpoint","Calls","Input tokens","Output tokens","Cost (1x)","Cost (2x)","Cost (5x)","Cost (10x)"].map(h => (
+                            <th key={h} className="text-left py-2 pr-4 text-xs font-semibold text-gray-500">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {endpoints.map(([ep, d]) => (
+                          <tr key={ep} className="border-b border-gray-100">
+                            <td className="py-2 pr-4 font-mono text-xs text-gray-700">{ep}</td>
+                            <td className="py-2 pr-4 text-gray-700">{d.calls}</td>
+                            <td className="py-2 pr-4 text-gray-700">{d.inputTokens?.toLocaleString()}</td>
+                            <td className="py-2 pr-4 text-gray-700">{d.outputTokens?.toLocaleString()}</td>
+                            <td className="py-2 pr-4 text-gray-700">${calcCost(d.inputTokens, d.outputTokens, 1).toFixed(4)}</td>
+                            <td className="py-2 pr-4 text-gray-700">${calcCost(d.inputTokens, d.outputTokens, 2).toFixed(4)}</td>
+                            <td className="py-2 pr-4 text-gray-700">${calcCost(d.inputTokens, d.outputTokens, 5).toFixed(4)}</td>
+                            <td className="py-2 pr-4 text-gray-700">${calcCost(d.inputTokens, d.outputTokens, 10).toFixed(4)}</td>
+                          </tr>
+                        ))}
+                        <tr className="font-semibold bg-gray-50">
+                          <td className="py-2 pr-4 text-gray-900">TOTAL</td>
+                          <td className="py-2 pr-4 text-gray-900">{usageData.totalCalls}</td>
+                          <td className="py-2 pr-4 text-gray-900">{usageData.totalInputTokens?.toLocaleString()}</td>
+                          <td className="py-2 pr-4 text-gray-900">{usageData.totalOutputTokens?.toLocaleString()}</td>
+                          <td className="py-2 pr-4 text-gray-900">${calcCost(usageData.totalInputTokens, usageData.totalOutputTokens, 1).toFixed(4)}</td>
+                          <td className="py-2 pr-4 text-gray-900">${calcCost(usageData.totalInputTokens, usageData.totalOutputTokens, 2).toFixed(4)}</td>
+                          <td className="py-2 pr-4 text-gray-900">${calcCost(usageData.totalInputTokens, usageData.totalOutputTokens, 5).toFixed(4)}</td>
+                          <td className="py-2 pr-4 text-gray-900">${calcCost(usageData.totalInputTokens, usageData.totalOutputTokens, 10).toFixed(4)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pricing note */}
+                  <p className="text-xs text-gray-400">Baseline: $3.00 per 1M input tokens, $15.00 per 1M output tokens (claude-sonnet-4, May 2026). Update PRICING constants in MentorDashboard.jsx when rates change.</p>
+                </>
+              )
+            })()}
+
+            {!usageLoading && usageData && usageData.totalCalls === 0 && (
+              <div className="text-center py-12 text-gray-400">No AI calls logged yet. Usage tracking began May 25, 2026.</div>
+            )}
           </div>
         )}
 

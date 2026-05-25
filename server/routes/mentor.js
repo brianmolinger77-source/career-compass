@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const Mentee = require('../models/Mentee');
 const Mentor = require('../models/Mentor');
 const mongoose = require('mongoose');
+const ApiUsageLog = require('../models/ApiUsageLog');
 
 function nameToSlug(name) {
   return name
@@ -473,6 +474,47 @@ router.put('/mentors/:id/activate', requireMentor, requireSuperuser, async (req,
   } catch (err) {
     console.error('Error activating mentor:', err);
     res.status(500).json({ error: 'Failed to activate mentor' });
+  }
+});
+
+
+// ── GET /api/mentor/usage — superuser only ───────────────────────────────────
+
+router.get('/usage', requireMentor, requireSuperuser, async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+
+    const logs = await ApiUsageLog.find({}).lean();
+
+    // Aggregate by endpoint
+    const byEndpoint = {};
+    let totalInput = 0;
+    let totalOutput = 0;
+    const menteesSeen = new Set();
+
+    for (const log of logs) {
+      if (!byEndpoint[log.endpoint]) {
+        byEndpoint[log.endpoint] = { calls: 0, inputTokens: 0, outputTokens: 0 };
+      }
+      byEndpoint[log.endpoint].calls += 1;
+      byEndpoint[log.endpoint].inputTokens += log.inputTokens;
+      byEndpoint[log.endpoint].outputTokens += log.outputTokens;
+      totalInput += log.inputTokens;
+      totalOutput += log.outputTokens;
+      if (log.menteeId) menteesSeen.add(log.menteeId);
+    }
+
+    res.json({
+      totalCalls: logs.length,
+      totalInputTokens: totalInput,
+      totalOutputTokens: totalOutput,
+      distinctMentees: menteesSeen.size,
+      byEndpoint,
+      loggingStartDate: '2026-05-25'
+    });
+  } catch (err) {
+    console.error('Error fetching usage data:', err);
+    res.status(500).json({ error: 'Failed to fetch usage data' });
   }
 });
 

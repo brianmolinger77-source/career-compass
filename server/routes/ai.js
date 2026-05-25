@@ -9,6 +9,24 @@ const anthropic = new Anthropic({
 
 const MODEL = 'claude-sonnet-4-20250514';
 
+const ApiUsageLog = require('../models/ApiUsageLog');
+
+async function logUsage(endpoint, menteeId, mentorId, usage) {
+  try {
+    await ApiUsageLog.create({
+      endpoint,
+      menteeId: menteeId || '',
+      mentorId: mentorId || '',
+      model: MODEL,
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      createdAt: new Date()
+    });
+  } catch (err) {
+    console.error('Usage log write failed:', err);
+  }
+}
+
 // ── POST /api/analyze-role ────────────────────────────────────────────────────
 router.post('/analyze-role', async (req, res) => {
   try {
@@ -110,6 +128,7 @@ Provide specific, actionable feedback to help translate this into compelling civ
     mentee.updatedAt = now;
     mentee.markModified('roles');   // required: roles contains a Mixed field (aiFeedback)
     await mentee.save();
+    logUsage('analyze-role', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ feedback, mentee });
   } catch (err) {
@@ -232,6 +251,7 @@ Please write their civilian career narrative and provide themes and feedback.`;
       mentee.careerThread = careerThreadFromRequest;
     }
     await mentee.save();
+    logUsage('generate-narrative', mentee.id, mentee.mentorId, response.usage);
 
     res.json({
       narrative: result.narrative,
@@ -325,6 +345,7 @@ ${mentee.aspirations || '(not provided)'}`;
     mentee.updatedAt = now;
     mentee.markModified('psaAnalysis');
     await mentee.save();
+    logUsage('analyze-psa', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ analysis: mentee.psaAnalysis, mentee });
   } catch (err) {
@@ -459,6 +480,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
     mentee.updatedAt = now;
     mentee.markModified('resumeBullets');
     await mentee.save();
+    logUsage('generate-resume-bullets', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ roleBullets: result.bullets, resumeSummary: result.summary || '', resumeGeneratedAt: now, mentee });
   } catch (err) {
@@ -548,6 +570,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
     mentee.resumeSummary = result.summary || '';
     mentee.updatedAt = now;
     await mentee.save();
+    logUsage('regenerate-summary', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ resumeSummary: result.summary || '', mentee });
   } catch (err) {
@@ -688,6 +711,7 @@ ${jobPostingText}`;
     mentee.updatedAt = now;
     mentee.markModified('jobAnalyses');
     await mentee.save();
+    logUsage('evaluate-job-posting', mentee.id, mentee.mentorId, response.usage);
 
     res.json({
       analysisId,
