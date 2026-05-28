@@ -642,10 +642,10 @@ Analyze the job posting against the veteran's profile and return four buckets:
 **CONFLICTS** — Maximum three items, selected in this priority order:
 1. Anything that directly contradicts a stated table stake
 2. Quality of life factors (travel requirements, remote vs. in-person, work schedule, work environment) that conflict with something explicitly stated in the PSAs
-3. Credentials, degrees, or certifications, or years of experience explicitly labeled "required" in the posting that do not appear in the profile
+3. Credentials, degrees, certifications, or years of experience explicitly labeled "required" in the posting that are NOT present in the veteran's education, certifications, or career history. If the veteran's profile already contains the credential, do NOT flag it as a conflict — move it to ALIGNS instead.
 
 For conflicts involving a table stake or quality of life factor, include a reflecting question in a mentor tone: "You've told us that [X] matters to you. This posting suggests [Y]. How does that sit with what you're looking for?"
-For conflicts involving missing required credentials: "This posting lists [credential] as required and we don't see that captured in your profile. Think about how you will talk to that."
+For conflicts involving missing required credentials: "This posting lists [credential] as required. We don't see that in your profile — think about how you will talk to that gap."
 
 CRITICAL CONSTRAINTS:
 - Never surface a conflict that cannot be grounded in something the veteran has explicitly written in their profile
