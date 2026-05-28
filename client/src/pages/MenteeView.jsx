@@ -83,6 +83,7 @@ export default function MenteeView() {
       const data = await getMentee(menteeId)
       setMentee(data)
       setCareerThread(data.careerThread || '')
+      setJobPostingText(data.savedJobPostingText || '')
       if (data.psaAnalysis) setPSAAnalysis(data.psaAnalysis)
     } catch (err) {
       if (err.message?.includes('not found') || err.message?.includes('404')) {
@@ -423,6 +424,7 @@ export default function MenteeView() {
                   <textarea
                     value={careerThread}
                     onChange={e => setCareerThread(e.target.value)}
+                    onBlur={e => handleUpdate({ careerThread: e.target.value })}
                     placeholder="Across all my roles, the one consistent thread has been..."
                     rows={3}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
@@ -565,6 +567,7 @@ export default function MenteeView() {
               <textarea
                 value={careerThread}
                 onChange={e => setCareerThread(e.target.value)}
+                onBlur={e => handleUpdate({ careerThread: e.target.value })}
                 placeholder="Across all my roles, the one consistent thread has been..."
                 rows={3}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
@@ -660,6 +663,7 @@ export default function MenteeView() {
               placeholder="Paste the job description here..."
               value={jobPostingText}
               onChange={e => setJobPostingText(e.target.value)}
+              onBlur={e => handleUpdate({ savedJobPostingText: e.target.value })}
             />
             {jobEvalError === 'readiness_gate' && (
               <p className="text-amber-600 text-sm mt-3">
