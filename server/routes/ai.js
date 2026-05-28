@@ -625,7 +625,9 @@ PASSIONS: ${mentee.passions || 'Not provided'}
 STRENGTHS: ${mentee.strengths || 'Not provided'}
 ASPIRATIONS: ${mentee.aspirations || 'Not provided'}
 TABLE STAKES (non-negotiables): ${mentee.tableStakes || 'Not provided'}
-${mentee.themes && mentee.themes.length > 0 ? `CAREER THEMES: ${mentee.themes.join(', ')}` : ''}`;
+${mentee.themes && mentee.themes.length > 0 ? `CAREER THEMES: ${mentee.themes.join(', ')}` : ''}
+${mentee.resumeEducation && mentee.resumeEducation.length > 0 ? `EDUCATION: ${mentee.resumeEducation.join(', ')}` : ''}
+${mentee.resumeCertifications && mentee.resumeCertifications.length > 0 ? `CERTIFICATIONS: ${mentee.resumeCertifications.join(', ')}` : ''}`;
 
     const systemPrompt = `You are supporting a military veteran in evaluating a job posting against their career profile. Your job is to act as a mirror, not an advisor. You reflect the veteran's own words back to them in the context of the posting. You never tell them whether to apply. You never make judgments about whether this is a good or bad opportunity. You hold your conclusions loosely — you know you have an incomplete picture. The job description may not capture everything about the role or culture. The veteran's profile may not capture everything about who they are.
 
