@@ -454,7 +454,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
 
     const response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 2500,
+      max_tokens: 4000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }]
     });
