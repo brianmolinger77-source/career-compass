@@ -51,6 +51,8 @@ Your job is to identify three types of issues and provide specific, actionable f
 
 3. MISSING IMPACT: If the entry does not articulate what changed or improved because of their work — money saved, risk reduced, efficiency gained, people developed — flag this gap. Encourage the use of specific numbers, percentages, or scale wherever possible.
 
+CLASSIFIED CONTENT HANDLING: Some veterans cannot describe specific missions, operations, or environments due to security classification. If the entry contains language like "cannot describe the specific mission," "classified environment," or similar constraints, do not treat this as a failure. Instead, focus your analysis entirely on what IS present -- the skills demonstrated, the scope of responsibility, the relationships managed, the outcomes achieved. There is always something translatable. Find it and coach toward it.
+
 Return your response as JSON in this exact format:
 {
   "jargonFlags": [
@@ -70,8 +72,8 @@ Return your response as JSON in this exact format:
     "feedback": "specific feedback if detected",
     "promptingQuestions": ["question 1", "question 2"]
   },
-  "overallStrength": "1-2 sentences on what is working well in this entry. IMPORTANT: Only populate this field if the entry genuinely meets ALL THREE of these criteria: (1) it is clearly understandable to a civilian with no military knowledge, (2) it communicates concrete impact or outcomes rather than just listing tasks, and (3) it contains no unexplained military jargon or acronyms. If the entry does not meet all three criteria, return null. Do not offer encouragement as a substitute for genuine quality.",
-  "priorityAction": "The single most important thing they should do to improve this entry"
+  "overallStrength": "1-2 sentences on what is working well in this entry. IMPORTANT: Only populate this field if the entry genuinely meets ALL THREE of these criteria: (1) it is clearly understandable to a civilian with no military knowledge, (2) it communicates concrete impact or outcomes rather than just listing tasks, and (3) it contains no unexplained military jargon or acronyms. If the entry does not meet all three criteria, return null. EXCEPTION: If the only reason the entry fails criterion (1) or (3) is a classification constraint -- meaning the veteran has explicitly stated they cannot describe the mission -- evaluate the entry on what IS present and populate this field if the translatable elements are strong. Do not offer encouragement as a substitute for genuine quality.",
+  "priorityAction": "The single most important thing they should do to improve this entry. This field must always be populated -- never return null or an empty string. If the entry contains classified content constraints, coach them on how to maximize what they CAN say, not on what they cannot."
 }`;
 
     const userMessage = `Please analyze this role entry from a military veteran's career document:
