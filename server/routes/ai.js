@@ -635,7 +635,7 @@ ${mentee.resumeCertifications && mentee.resumeCertifications.length > 0 ? `CERTI
 
 Analyze the job posting against the veteran's profile and return four buckets:
 
-**ALIGNS** — Specific, concrete connections between what the posting describes and what appears in the veteran's profile. Name both the posting element and the profile element it connects to. If no clear alignments exist, return an empty array — do not manufacture encouragement.
+ALIGNS — Specific, concrete connections between what the posting describes and what appears in the veteran's profile. Name both the posting element and the profile element it connects to. For each alignment, provide a short label (3-5 words, no punctuation) and a full explanation. If no clear alignments exist, return an empty array — do not manufacture encouragement.
 CREDENTIAL MATCHING: Actively scan the job posting for any credentials, certifications, degrees, or technical qualifications — whether listed as required, preferred, or nice-to-have. Then scan the entire veteran profile for any mention of those credentials, including in career history, strengths, and all free-form text fields — not just the formal CERTIFICATIONS line. If a match exists, surface it in ALIGNS. If the credential is in-progress, note that status honestly rather than omitting it — a veteran currently pursuing a certification the posting lists as preferred is a genuine alignment worth surfacing.
 
 **DIFFERENCES** — Gaps or mismatches between this posting and this veteran's specific profile that are worth noting but are not direct conflicts. Each difference must be grounded in something specific in the posting and something specific in the profile — not generic observations that would apply to any veteran making a military-to-civilian transition. Do not surface differences like "civilian vs military environment" or "corporate culture adjustment" — these are universal and add no value. Frame genuine differences neutrally as observations, not problems.
@@ -661,7 +661,9 @@ Also extract the job title from the posting for display purposes.
 Return ONLY valid JSON in this exact format:
 {
   "jobTitle": "extracted job title from the posting, or 'Job Posting' if not clearly stated",
-  "aligns": ["specific alignment 1", "specific alignment 2"],
+  "aligns": [
+    { "label": "3-5 word label", "detail": "full explanation connecting the posting element to the profile element" }
+  ],
   "differences": ["difference 1", "difference 2"],
   "unknowns": ["unknown 1", "unknown 2"],
   "conflicts": [

@@ -683,69 +683,92 @@ export default function MenteeView() {
           </div>
 
           {jobAnalysis && (
-            <div className="mt-8 space-y-6">
+            <div className="mt-8 space-y-4">
+
+              <div className="grid grid-cols-4 gap-2">
+                <div className="bg-green-50 rounded-lg p-3">
+                  <div className="text-xl font-medium text-green-700">{jobAnalysis.aligns?.length || 0}</div>
+                  <div className="text-xs text-green-600 mt-0.5">lines up</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-xl font-medium text-gray-700">{jobAnalysis.differences?.length || 0}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">heads up</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-xl font-medium text-gray-700">{jobAnalysis.unknowns?.length || 0}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">questions to ask</div>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-3">
+                  <div className="text-xl font-medium text-amber-700">{jobAnalysis.conflicts?.length || 0}</div>
+                  <div className="text-xs text-amber-600 mt-0.5">worth a conversation</div>
+                </div>
+              </div>
+
+              {jobAnalysis.conflicts && jobAnalysis.conflicts.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+                  <h3 className="text-sm font-medium text-amber-700 mb-3">Worth a conversation</h3>
+                  <div className="space-y-3">
+                    {jobAnalysis.conflicts.map((item, i) => (
+                      <div key={i}>
+                        <p className="text-sm text-gray-700">{item.observation}</p>
+                        {item.reflectingQuestion && (
+                          <p className="mt-1.5 text-sm text-amber-700 italic">{item.reflectingQuestion}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {jobAnalysis.aligns && jobAnalysis.aligns.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold text-[#1F4E79] mb-3">Where This Connects</h3>
-                  <ul className="space-y-2">
-                    {jobAnalysis.aligns.map((item, i) => (
-                      <li key={i} className="text-sm text-gray-700 flex gap-2">
-                        <span className="text-green-500 mt-0.5">✓</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="bg-white border border-gray-200 rounded-xl p-5">
+                  <h3 className="text-sm font-medium text-gray-800 mb-3">Where it lines up</h3>
+                  <p className="text-xs text-gray-400 mb-3">Hover over any item to see the detail.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {jobAnalysis.aligns.map((item, i) => {
+                      const label = typeof item === 'object' ? item.label : item;
+                      const detail = typeof item === 'object' ? item.detail : item;
+                      return (
+                        <div key={i} className="relative group">
+                          <span className="inline-block text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-full cursor-default">
+                            {label}
+                          </span>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block w-56 bg-white border border-gray-200 rounded-lg p-2.5 text-xs text-gray-600 leading-relaxed z-10 pointer-events-none shadow-sm">
+                            {detail}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
               {jobAnalysis.differences && jobAnalysis.differences.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold text-[#1F4E79] mb-3">Worth Being Aware Of</h3>
-                  <ul className="space-y-2">
+                <div className="bg-white border border-gray-200 rounded-xl p-5">
+                  <h3 className="text-sm font-medium text-gray-800 mb-3">Heads up</h3>
+                  <div className="space-y-2">
                     {jobAnalysis.differences.map((item, i) => (
-                      <li key={i} className="text-sm text-gray-700 flex gap-2">
-                        <span className="text-blue-400 mt-0.5">→</span>
-                        <span>{item}</span>
-                      </li>
+                      <p key={i} className="text-sm text-gray-500 pl-3 border-l-2 border-gray-200">{item}</p>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
 
               {jobAnalysis.unknowns && jobAnalysis.unknowns.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold text-[#1F4E79] mb-3">Questions Worth Asking</h3>
-                  <ul className="space-y-2">
+                <div className="bg-white border border-gray-200 rounded-xl p-5">
+                  <h3 className="text-sm font-medium text-gray-800 mb-3">Questions worth asking</h3>
+                  <div className="space-y-2">
                     {jobAnalysis.unknowns.map((item, i) => (
-                      <li key={i} className="text-sm text-gray-700 flex gap-2">
-                        <span className="text-gray-400 mt-0.5">?</span>
-                        <span>{item}</span>
-                      </li>
+                      <p key={i} className="text-sm text-gray-500 pl-3 border-l-2 border-gray-200">{item}</p>
                     ))}
-                  </ul>
-                </div>
-              )}
-
-              {jobAnalysis.conflicts && jobAnalysis.conflicts.length > 0 && (
-                <div className="bg-white border border-amber-200 rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-semibold text-[#1F4E79] mb-3">Worth a Conversation</h3>
-                  <ul className="space-y-4">
-                    {jobAnalysis.conflicts.map((item, i) => (
-                      <li key={i} className="text-sm text-gray-700">
-                        <p>{item.observation}</p>
-                        {item.reflectingQuestion && (
-                          <p className="mt-2 text-amber-700 italic">{item.reflectingQuestion}</p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                  </div>
                 </div>
               )}
 
               <p className="text-xs text-gray-400 text-center pt-2">
                 This analysis is based on what's captured in your Career Compass profile. It's a starting point for reflection, not a recommendation.
               </p>
+
             </div>
           )}
         </section>
