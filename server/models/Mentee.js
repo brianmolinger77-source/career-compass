@@ -29,7 +29,7 @@ const jobAnalysisSchema = new mongoose.Schema({
   jobTitle:       { type: String, default: '' },
   jobPostingText: { type: String, default: '' },
   analyzedAt:     { type: Date },
-  aligns:         { type: [String], default: [] },
+  aligns:         { type: [mongoose.Schema.Types.Mixed], default: [] },
   differences:    { type: [String], default: [] },
   unknowns:       { type: [String], default: [] },
   conflicts:      { type: mongoose.Schema.Types.Mixed, default: [] },
