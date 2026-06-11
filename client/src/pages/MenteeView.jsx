@@ -23,6 +23,15 @@ function calcCompletion(mentee) {
   return Math.round((total / max) * 100)
 }
 
+const TAB_LABELS = [
+  'Career History',
+  'My Story',
+  'Passions & Strengths',
+  'Resume',
+  'Target Roles',
+  'Job Evaluation',
+]
+
 export default function MenteeView() {
   const { menteeId } = useParams()
   const [mentee, setMentee] = useState(null)
@@ -40,14 +49,11 @@ export default function MenteeView() {
   const [psaAnalysis, setPSAAnalysis] = useState(null)
   const [isAnalyzingPSA, setIsAnalyzingPSA] = useState(false)
   const [psaError, setPSAError] = useState(null)
-  const [psaAnalysisGenerated, setPSAAnalysisGenerated] = useState(false)
-  const [narrativeGenerated, setNarrativeGenerated] = useState(false)
-  const psaOutputRef = useRef(null)
-  const narrativeRef = useRef(null)
   const [jobPostingText, setJobPostingText] = useState('')
   const [jobAnalysis, setJobAnalysis] = useState(null)
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [jobEvalError, setJobEvalError] = useState(null)
+  const [activeTab, setActiveTab] = useState(0)
   const { saveStatus, setSaving, setSaved, setError: setSaveError } = useSaveStatus()
 
   async function handleEvaluateJobPosting() {
@@ -156,7 +162,6 @@ export default function MenteeView() {
   }
 
   async function handleGenerateNarrative(skipThreadCheck = false) {
-    // If careerThread is empty, show prompt first
     if (!skipThreadCheck && !careerThread.trim()) {
       setShowThreadPrompt(true)
       return
@@ -171,7 +176,7 @@ export default function MenteeView() {
         strength: result.narrativeStrength,
         refinement: result.refinementNote
       })
-      setNarrativeGenerated(true)
+      setActiveTab(1)
     } catch (err) {
       setGenerateError('Story generation unavailable right now — try again in a moment.')
     } finally {
@@ -192,7 +197,6 @@ export default function MenteeView() {
       try {
         const result = await analyzePSA(mentee.id)
         handlePSAAnalysisComplete(result.analysis, result.mentee)
-        setPSAAnalysisGenerated(true)
         setIsAnalyzingPSA(false)
         return
       } catch (err) {
@@ -203,18 +207,6 @@ export default function MenteeView() {
     setPSAError('Analysis unavailable right now — try again in a moment.')
     setIsAnalyzingPSA(false)
   }
-
-  useEffect(() => {
-    if (psaAnalysisGenerated && psaOutputRef.current) {
-      psaOutputRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }, [psaAnalysisGenerated])
-
-  useEffect(() => {
-    if (narrativeGenerated && narrativeRef.current) {
-      narrativeRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }, [narrativeGenerated])
 
   async function handlePinSubmit() {
     setPinError(null)
@@ -307,10 +299,50 @@ export default function MenteeView() {
   const roles = mentee.roles || []
   const completion = calcCompletion(mentee)
   const hasEnoughRoles = roles.length >= 2
-
   const rolesWithContent = roles.filter(r => r.whatIDid || r.howIDidIt || r.impact)
   const hasPSAContent = !!(mentee.passions || mentee.strengths || mentee.aspirations)
   const showResumeBuilder = rolesWithContent.length >= 2 && hasPSAContent
+
+  const psaAndStakesComplete = !!(
+    mentee.passions?.trim() &&
+    mentee.strengths?.trim() &&
+    mentee.aspirations?.trim() &&
+    mentee.tableStakes?.trim()
+  )
+
+  const tabUnlocked = [
+    true,
+    roles.length >= 1,
+    !!mentee.generatedNarrative,
+    psaAndStakesComplete,
+    psaAndStakesComplete,
+    roles.length >= 1 && !!(mentee.passions?.trim() && mentee.strengths?.trim() && mentee.aspirations?.trim() && mentee.tableStakes?.trim()),
+  ]
+
+  const lockMessages = [
+    '',
+    'Add at least one role in Career History to unlock this.',
+    'Generate your story in My Story to unlock this.',
+    'Complete your Passions, Strengths, Aspirations, and Table Stakes to unlock this.',
+    'Complete your Passions, Strengths, Aspirations, and Table Stakes to unlock this.',
+    'Complete Career History and all PSA fields to unlock this.',
+  ]
+
+  function handleTabClick(idx) {
+    if (tabUnlocked[idx]) {
+      setActiveTab(idx)
+    }
+  }
+
+  const completedTabs = tabUnlocked.map((unlocked, idx) => {
+    if (idx === 0) return roles.length >= 1
+    if (idx === 1) return !!mentee.generatedNarrative
+    if (idx === 2) return psaAndStakesComplete && !!psaAnalysis
+    if (idx === 3) return showResumeBuilder
+    if (idx === 4) return false
+    if (idx === 5) return !!jobAnalysis
+    return false
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -333,8 +365,6 @@ export default function MenteeView() {
               </button>
             </div>
           </div>
-
-          {/* Progress bar */}
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-blue-200">Document completion</span>
@@ -350,430 +380,451 @@ export default function MenteeView() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-12">
-
-        {/* Onboarding / Empty state */}
-        {roles.length === 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
-            <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">&#9881;</span>
+      {/* Sticky tab nav */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm no-print">
+        <div className="max-w-3xl mx-auto px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex overflow-x-auto">
+              {TAB_LABELS.map((label, idx) => {
+                const unlocked = tabUnlocked[idx]
+                const completed = completedTabs[idx]
+                const active = activeTab === idx
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleTabClick(idx)}
+                    className={`flex items-center gap-1.5 px-3 py-4 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
+                      active
+                        ? 'border-[#1F4E79] text-[#1F4E79]'
+                        : unlocked
+                        ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        : 'border-transparent text-gray-300 cursor-not-allowed'
+                    }`}
+                  >
+                    <span className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
+                      active
+                        ? 'bg-[#1F4E79] text-white'
+                        : completed
+                        ? 'bg-green-500 text-white'
+                        : unlocked
+                        ? 'bg-gray-200 text-gray-600'
+                        : 'bg-gray-100 text-gray-300'
+                    }`}>
+                      {completed && !active ? '✓' : idx + 1}
+                    </span>
+                    {label}
+                  </button>
+                )
+              })}
             </div>
-            <h2 className="text-xl font-bold text-[#1F4E79] mb-3">Welcome to Career Compass.</h2>
-            <p className="text-gray-600 leading-relaxed max-w-xl mx-auto">
-              This document is yours — it's the foundation of your career story and everything we'll build together over the next year.
-              There are no wrong answers here. Write as if you're talking to a friend, not writing a report.
-              Your mentor will review this with you and help you shape it into something powerful.
-            </p>
-            <button
-              onClick={handleAddRole}
-              className="mt-6 bg-[#C65911] hover:bg-[#a34a0e] text-white font-semibold px-6 py-3 rounded-xl transition-colors"
-            >
-              Add Your First Role
-            </button>
+            <div className="pl-4 shrink-0 text-right">
+              <span className="text-xs text-gray-400">Step {activeTab + 1} of 6</span>
+              <div className="w-16 bg-gray-100 rounded-full h-1 mt-1">
+                <div
+                  className="bg-[#1F4E79] h-1 rounded-full transition-all"
+                  style={{ width: `${((activeTab + 1) / 6) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tab content */}
+      <div className="max-w-3xl mx-auto px-4 py-8">
+
+        {/* Locked message */}
+        {!tabUnlocked[activeTab] && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-xl">🔒</span>
+            </div>
+            <p className="text-gray-600 text-sm">{lockMessages[activeTab]}</p>
           </div>
         )}
 
-        {/* Career History Section */}
-        {roles.length > 0 && (
+        {/* Tab 0: Career History */}
+        {activeTab === 0 && tabUnlocked[0] && (
+          <div className="space-y-8">
+            {roles.length === 0 && (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+                <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">&#9881;</span>
+                </div>
+                <h2 className="text-xl font-bold text-[#1F4E79] mb-3">Welcome to Career Compass.</h2>
+                <p className="text-gray-600 leading-relaxed max-w-xl mx-auto">
+                  This document is yours — it's the foundation of your career story and everything we'll build together over the next year.
+                  There are no wrong answers here. Write as if you're talking to a friend, not writing a report.
+                  Your mentor will review this with you and help you shape it into something powerful.
+                </p>
+                <button
+                  onClick={handleAddRole}
+                  className="mt-6 bg-[#C65911] hover:bg-[#a34a0e] text-white font-semibold px-6 py-3 rounded-xl transition-colors"
+                >
+                  Add Your First Role
+                </button>
+              </div>
+            )}
+
+            {roles.length > 0 && (
+              <section>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-[#1F4E79]">Career History</h2>
+                  <p className="text-gray-600 mt-2 leading-relaxed text-sm">
+                    Start with your most recent role and work backwards. For each position, you'll answer three questions:
+                    what you did, how you did it, and the impact you made. Don't worry about perfect language — your mentor
+                    will help you refine it. Just tell the story honestly.
+                  </p>
+                </div>
+
+                <div className="space-y-6">
+                  {roles.map((role, idx) => (
+                    <RoleCard
+                      key={role.id}
+                      role={role}
+                      menteeId={menteeId}
+                      onUpdate={handleRoleUpdate}
+                      onDelete={handleDeleteRole}
+                      onMoveUp={(id) => handleMoveRole(id, 'up')}
+                      onMoveDown={(id) => handleMoveRole(id, 'down')}
+                      isMentorView={false}
+                      mentorComments={[]}
+                      isFirst={idx === 0}
+                      isLast={idx === roles.length - 1}
+                    />
+                  ))}
+                </div>
+
+                <div className="mt-6 flex justify-center no-print">
+                  <button
+                    onClick={handleAddRole}
+                    className="border-2 border-dashed border-gray-300 hover:border-[#1F4E79] text-gray-500 hover:text-[#1F4E79] font-medium px-6 py-3 rounded-xl transition-colors text-sm"
+                  >
+                    + Add Another Role
+                  </button>
+                </div>
+
+                {hasEnoughRoles && (
+                  <>
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-3 my-6">
+                      <div>
+                        <h3 className="text-base font-bold text-[#1F4E79]">The Thread That Runs Through Your Career</h3>
+                        <div className="mt-2 bg-blue-50 border-l-4 border-[#1F4E79] pl-3 py-2 rounded-r text-xs text-gray-700 leading-relaxed">
+                          Before generating your narrative, take a moment to reflect. Looking across all the roles you've held, what's the one thing that has consistently shown up — something you've been drawn to, relied on, or that others have counted on you for? Don't overthink it. One or two sentences is enough.
+                        </div>
+                      </div>
+                      <textarea
+                        value={careerThread}
+                        onChange={e => setCareerThread(e.target.value)}
+                        onBlur={e => handleUpdate({ careerThread: e.target.value })}
+                        placeholder="Across all my roles, the one consistent thread has been..."
+                        rows={3}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
+                      />
+                    </div>
+                    <div className="flex flex-col items-center gap-3 my-6 no-print">
+                      {showThreadPrompt && !careerThread.trim() && (
+                        <div className="w-full max-w-md bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-center space-y-3">
+                          <p className="text-sm text-gray-700">
+                            You can generate your story now, or take a moment to fill in the career thread above — it helps make the narrative sound more like you.
+                          </p>
+                          <div className="flex justify-center gap-3">
+                            <button
+                              onClick={() => handleGenerateNarrative(true)}
+                              className="text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors"
+                            >
+                              Generate Now
+                            </button>
+                            <button
+                              onClick={() => setShowThreadPrompt(false)}
+                              className="text-sm text-[#1F4E79] border border-[#1F4E79] hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
+                            >
+                              Add My Thread First
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleGenerateNarrative(false)}
+                        disabled={isGenerating || !hasEnoughRoles}
+                        className="bg-[#C65911] hover:bg-[#a34a0e] text-white font-bold text-base px-8 py-3.5 rounded-xl transition-colors disabled:opacity-60 flex items-center gap-3 shadow-md"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Generating Your Story...
+                          </>
+                        ) : (
+                          <>
+                            <span>&#10024;</span>
+                            {mentee.generatedNarrative ? 'Regenerate My Story' : 'Generate My Story'}
+                          </>
+                        )}
+                      </button>
+                      {!hasEnoughRoles && (
+                        <p className="text-xs text-gray-400">Add at least 2 roles to generate your story</p>
+                      )}
+                      {generateError && (
+                        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                          {generateError}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
+          </div>
+        )}
+
+        {/* Tab 1: My Story */}
+        {activeTab === 1 && tabUnlocked[1] && (
           <section>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-[#1F4E79]">Career History</h2>
+              <h2 className="text-2xl font-bold text-[#1F4E79]">My Story</h2>
               <p className="text-gray-600 mt-2 leading-relaxed text-sm">
-                Start with your most recent role and work backwards. For each position, you'll answer three questions:
-                what you did, how you did it, and the impact you made. Don't worry about perfect language — your mentor
-                will help you refine it. Just tell the story honestly.
+                This is your career narrative — a plain-language summary of who you are, what you've done, and what you bring to a civilian employer.
+              </p>
+            </div>
+            {mentee.generatedNarrative ? (
+              <NarrativeCard
+                narrative={mentee.generatedNarrative}
+                themes={mentee.themes || []}
+                narrativeStrength={narrativeMeta.strength}
+                refinementNote={narrativeMeta.refinement}
+                narrativeGeneratedAt={mentee.narrativeGeneratedAt}
+                onRegenerate={handleGenerateNarrative}
+                isGenerating={isGenerating}
+              />
+            ) : (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+                <p className="text-gray-500 text-sm">Your story hasn't been generated yet. Go back to Career History and click Generate My Story.</p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Tab 2: Passions & Strengths */}
+        {activeTab === 2 && tabUnlocked[2] && (
+          <section>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-[#1F4E79]">Passions, Strengths & Aspirations</h2>
+              <p className="text-gray-600 mt-2 leading-relaxed text-sm">
+                This section is where your career story gets personal. The Venn diagram below maps the sweet spot
+                where your passions, strengths, and aspirations converge. Fill in each section honestly —
+                this will shape the narrative we build together.
               </p>
             </div>
 
-            <div className="space-y-6">
-              {roles.map((role, idx) => (
-                <RoleCard
-                  key={role.id}
-                  role={role}
-                  menteeId={menteeId}
-                  onUpdate={handleRoleUpdate}
-                  onDelete={handleDeleteRole}
-                  onMoveUp={(id) => handleMoveRole(id, 'up')}
-                  onMoveDown={(id) => handleMoveRole(id, 'down')}
-                  isMentorView={false}
-                  mentorComments={[]}
-                  isFirst={idx === 0}
-                  isLast={idx === roles.length - 1}
-                />
-              ))}
+            <div className="mb-8">
+              <VennDiagram />
             </div>
 
-            <div className="mt-6 flex justify-center no-print">
-              <button
-                onClick={handleAddRole}
-                className="border-2 border-dashed border-gray-300 hover:border-[#1F4E79] text-gray-500 hover:text-[#1F4E79] font-medium px-6 py-3 rounded-xl transition-colors text-sm"
-              >
-                + Add Another Role
-              </button>
-            </div>
+            <div className="space-y-10">
+              <PassionsStrengthsAspirations
+                menteeData={mentee}
+                onUpdate={handleUpdate}
+                onPSAAnalysisComplete={handlePSAAnalysisComplete}
+                isMentorView={false}
+                showAnalyzeButton={false}
+              />
 
-            {hasEnoughRoles && (
-              <>
-                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-3 my-6">
-                  <div>
-                    <h3 className="text-base font-bold text-[#1F4E79]">The Thread That Runs Through Your Career</h3>
-                    <div className="mt-2 bg-blue-50 border-l-4 border-[#1F4E79] pl-3 py-2 rounded-r text-xs text-gray-700 leading-relaxed">
-                      Before generating your narrative, take a moment to reflect. Looking across all the roles you've held, what's the one thing that has consistently shown up — something you've been drawn to, relied on, or that others have counted on you for? Don't overthink it. One or two sentences is enough.
-                    </div>
-                  </div>
-                  <textarea
-                    value={careerThread}
-                    onChange={e => setCareerThread(e.target.value)}
-                    onBlur={e => handleUpdate({ careerThread: e.target.value })}
-                    placeholder="Across all my roles, the one consistent thread has been..."
-                    rows={3}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
-                  />
-                </div>
-                <div className="flex flex-col items-center gap-3 my-6 no-print">
-                  {showThreadPrompt && !careerThread.trim() && (
-                    <div className="w-full max-w-md bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-center space-y-3">
-                      <p className="text-sm text-gray-700">
-                        You can generate your story now, or take a moment to fill in the career thread above — it helps make the narrative sound more like you.
-                      </p>
-                      <div className="flex justify-center gap-3">
-                        <button
-                          onClick={() => handleGenerateNarrative(true)}
-                          className="text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Generate Now
-                        </button>
-                        <button
-                          onClick={() => setShowThreadPrompt(false)}
-                          className="text-sm text-[#1F4E79] border border-[#1F4E79] hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
-                        >
-                          Add My Thread First
-                        </button>
-                      </div>
-                    </div>
-                  )}
+              <TableStakes
+                menteeData={mentee}
+                onUpdate={handleUpdate}
+                isMentorView={false}
+              />
+
+              {mentee.passions?.trim() && mentee.strengths?.trim() && mentee.aspirations?.trim() && (
+                <div className="flex flex-col items-center gap-3 pt-2 no-print">
                   <button
-                    onClick={() => handleGenerateNarrative(false)}
-                    disabled={isGenerating || !hasEnoughRoles}
-                    className="bg-[#C65911] hover:bg-[#a34a0e] text-white font-bold text-base px-8 py-3.5 rounded-xl transition-colors disabled:opacity-60 flex items-center gap-3 shadow-md"
+                    onClick={handleAnalyzePSA}
+                    disabled={isAnalyzingPSA}
+                    className="bg-[#1F4E79] hover:bg-[#163d5e] text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
                   >
-                    {isGenerating ? (
+                    {isAnalyzingPSA ? (
                       <>
-                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                        Generating Your Story...
+                        Analyzing...
                       </>
                     ) : (
-                      <>
-                        <span>&#10024;</span>
-                        {mentee.generatedNarrative ? 'Regenerate My Story' : 'Generate My Story'}
-                      </>
+                      <>&#10022; Analyze My Passions, Strengths &amp; Aspirations</>
                     )}
                   </button>
-                  {!hasEnoughRoles && (
-                    <p className="text-xs text-gray-400">Add at least 2 roles to generate your story</p>
-                  )}
-                  {generateError && (
-                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
-                      {generateError}
+                  {psaError && (
+                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      {psaError}
                     </p>
                   )}
                 </div>
-              </>
+              )}
+
+              {psaAnalysis && (
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                  <PSAAnalysisPanel psaAnalysis={psaAnalysis} isMentorView={false} />
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Tab 3: Resume */}
+        {activeTab === 3 && tabUnlocked[3] && (
+          <section>
+            {showResumeBuilder ? (
+              <ResumeBuilder mentee={mentee} onUpdate={handleUpdate} />
+            ) : (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+                <p className="text-gray-500 text-sm">Add at least 2 roles with content and complete your PSA to unlock the Resume Builder.</p>
+              </div>
             )}
           </section>
         )}
 
-        {/* Passions, Strengths, Aspirations & Table Stakes */}
-        <section>
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-[#1F4E79]">
-              Passions, Strengths & Aspirations
-            </h2>
-            <p className="text-gray-600 mt-2 leading-relaxed text-sm">
-              This section is where your career story gets personal. The Venn diagram below maps the sweet spot
-              where your passions, strengths, and aspirations converge. Fill in each section honestly —
-              this will shape the narrative we build together.
-            </p>
-          </div>
-
-          <div className="mb-8">
-            <VennDiagram />
-          </div>
-
-          <div className="space-y-10">
-            <PassionsStrengthsAspirations
-              menteeData={mentee}
-              onUpdate={handleUpdate}
-              onPSAAnalysisComplete={handlePSAAnalysisComplete}
-              isMentorView={false}
-              showAnalyzeButton={false}
-            />
-
-            <TableStakes
-              menteeData={mentee}
-              onUpdate={handleUpdate}
-              isMentorView={false}
-            />
-
-            {/* Analyze button sits immediately above the output panel it triggers */}
-            {mentee.passions?.trim() && mentee.strengths?.trim() && mentee.aspirations?.trim() && (
-              <div className="flex flex-col items-center gap-3 pt-2 no-print">
-                <button
-                  onClick={handleAnalyzePSA}
-                  disabled={isAnalyzingPSA}
-                  className="bg-[#1F4E79] hover:bg-[#163d5e] text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
-                >
-                  {isAnalyzingPSA ? (
-                    <>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>&#10022; Analyze My Passions, Strengths &amp; Aspirations</>
-                  )}
-                </button>
-                {psaError && (
-                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    {psaError}
-                  </p>
-                )}
+        {/* Tab 4: Target Roles */}
+        {activeTab === 4 && tabUnlocked[4] && (
+          <section>
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-xl">🎯</span>
               </div>
-            )}
-
-            {psaAnalysis && (
-              <div ref={psaOutputRef} className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-                <PSAAnalysisPanel psaAnalysis={psaAnalysis} isMentorView={false} />
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Career thread + Generate button at bottom of document */}
-        {roles.length > 0 && (
-          <>
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-3 my-6">
-              <div>
-                <h3 className="text-base font-bold text-[#1F4E79]">The Thread That Runs Through Your Career</h3>
-                <div className="mt-2 bg-blue-50 border-l-4 border-[#1F4E79] pl-3 py-2 rounded-r text-xs text-gray-700 leading-relaxed">
-                  Before generating your narrative, take a moment to reflect. Looking across all the roles you've held, what's the one thing that has consistently shown up — something you've been drawn to, relied on, or that others have counted on you for? Don't overthink it. One or two sentences is enough.
-                </div>
-              </div>
-              <textarea
-                value={careerThread}
-                onChange={e => setCareerThread(e.target.value)}
-                onBlur={e => handleUpdate({ careerThread: e.target.value })}
-                placeholder="Across all my roles, the one consistent thread has been..."
-                rows={3}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
-              />
+              <h2 className="text-xl font-bold text-[#1F4E79] mb-3">Target Roles</h2>
+              <p className="text-gray-500 text-sm">This feature is coming soon. You'll be able to identify specific roles and companies you're targeting and map your experience to their requirements.</p>
             </div>
-            <div className="flex flex-col items-center gap-3 my-6 no-print">
-              {showThreadPrompt && !careerThread.trim() && (
-                <div className="w-full max-w-md bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-center space-y-3">
-                  <p className="text-sm text-gray-700">
-                    You can generate your story now, or take a moment to fill in the career thread above — it helps make the narrative sound more like you.
-                  </p>
-                  <div className="flex justify-center gap-3">
-                    <button
-                      onClick={() => handleGenerateNarrative(true)}
-                      className="text-sm text-gray-600 border border-gray-300 hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors"
-                    >
-                      Generate Now
-                    </button>
-                    <button
-                      onClick={() => setShowThreadPrompt(false)}
-                      className="text-sm text-[#1F4E79] border border-[#1F4E79] hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
-                    >
-                      Add My Thread First
-                    </button>
-                  </div>
-                </div>
-              )}
-              <button
-                onClick={() => handleGenerateNarrative(false)}
-                disabled={isGenerating || !hasEnoughRoles}
-                className="bg-[#C65911] hover:bg-[#a34a0e] text-white font-bold text-base px-8 py-3.5 rounded-xl transition-colors disabled:opacity-60 flex items-center gap-3 shadow-md"
-              >
-                {isGenerating ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Generating Your Story...
-                  </>
-                ) : (
-                  <>
-                    <span>&#10024;</span>
-                    {mentee.generatedNarrative ? 'Regenerate My Story' : 'Generate My Story'}
-                  </>
-                )}
-              </button>
-              {!hasEnoughRoles && (
-                <p className="text-xs text-gray-400">Add at least 2 roles to generate your story</p>
-              )}
-              {generateError && (
-                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
-                  {generateError}
+          </section>
+        )}
+
+        {/* Tab 5: Job Evaluation */}
+        {activeTab === 5 && tabUnlocked[5] && (
+          <section>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-[#1F4E79]">Evaluate a Job Posting</h2>
+              <p className="text-gray-600 mt-2 leading-relaxed text-sm">
+                Paste a job description below. The AI will compare it against your Career Compass profile and show you where things align, where there are gaps, and where there may be tension with what matters most to you.
+              </p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+              <textarea
+                className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-700 h-48 resize-y focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
+                placeholder="Paste the job description here..."
+                value={jobPostingText}
+                onChange={e => setJobPostingText(e.target.value)}
+                onBlur={e => handleUpdate({ savedJobPostingText: e.target.value })}
+              />
+              {jobEvalError === 'readiness_gate' && (
+                <p className="text-amber-600 text-sm mt-3">
+                  To use this feature, complete at least one career history entry, all three PSA fields (Passions, Strengths, and Aspirations), and at least one table stake.
                 </p>
               )}
+              {jobEvalError && jobEvalError !== 'readiness_gate' && (
+                <p className="text-red-500 text-sm mt-3">{jobEvalError}</p>
+              )}
+              <button
+                onClick={handleEvaluateJobPosting}
+                disabled={isEvaluating || !jobPostingText.trim()}
+                className="mt-4 px-6 py-2 bg-[#1F4E79] text-white rounded-lg text-sm font-medium hover:bg-[#163d5e] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isEvaluating ? 'Analyzing...' : 'Evaluate This Role'}
+              </button>
             </div>
-          </>
-        )}
 
-        {/* Narrative */}
-        {mentee.generatedNarrative && (
-          <section ref={narrativeRef}>
-            <NarrativeCard
-              narrative={mentee.generatedNarrative}
-              themes={mentee.themes || []}
-              narrativeStrength={narrativeMeta.strength}
-              refinementNote={narrativeMeta.refinement}
-              narrativeGeneratedAt={mentee.narrativeGeneratedAt}
-              onRegenerate={handleGenerateNarrative}
-              isGenerating={isGenerating}
-            />
-          </section>
-        )}
-
-        {/* Resume Builder */}
-        {showResumeBuilder && (
-          <section>
-            <ResumeBuilder mentee={mentee} onUpdate={handleUpdate} />
-          </section>
-        )}
-
-        {/* Job Posting Evaluation */}
-        <section>
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-[#1F4E79]">Evaluate a Job Posting</h2>
-            <p className="text-gray-600 mt-2 leading-relaxed text-sm">
-              Paste a job description below. The AI will compare it against your Career Compass profile and show you where things align, where there are gaps, and where there may be tension with what matters most to you.
-            </p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-            <textarea
-              className="w-full border border-gray-300 rounded-lg p-3 text-sm text-gray-700 h-48 resize-y focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
-              placeholder="Paste the job description here..."
-              value={jobPostingText}
-              onChange={e => setJobPostingText(e.target.value)}
-              onBlur={e => handleUpdate({ savedJobPostingText: e.target.value })}
-            />
-            {jobEvalError === 'readiness_gate' && (
-              <p className="text-amber-600 text-sm mt-3">
-                To use this feature, complete at least one career history entry, all three PSA fields (Passions, Strengths, and Aspirations), and at least one table stake.
-              </p>
-            )}
-            {jobEvalError && jobEvalError !== 'readiness_gate' && (
-              <p className="text-red-500 text-sm mt-3">{jobEvalError}</p>
-            )}
-            <button
-              onClick={handleEvaluateJobPosting}
-              disabled={isEvaluating || !jobPostingText.trim()}
-              className="mt-4 px-6 py-2 bg-[#1F4E79] text-white rounded-lg text-sm font-medium hover:bg-[#163d5e] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isEvaluating ? 'Analyzing...' : 'Evaluate This Role'}
-            </button>
-          </div>
-
-          {jobAnalysis && (
-            <div className="mt-8 space-y-4">
-
-              <div className="grid grid-cols-4 gap-2">
-                <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-xl font-medium text-green-700">{jobAnalysis.aligns?.length || 0}</div>
-                  <div className="text-xs text-green-600 mt-0.5">lines up</div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="text-xl font-medium text-gray-700">{jobAnalysis.differences?.length || 0}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">heads up</div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="text-xl font-medium text-gray-700">{jobAnalysis.unknowns?.length || 0}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">questions to ask</div>
-                </div>
-                <div className="bg-amber-50 rounded-lg p-3">
-                  <div className="text-xl font-medium text-amber-700">{jobAnalysis.conflicts?.length || 0}</div>
-                  <div className="text-xs text-amber-600 mt-0.5">worth a conversation</div>
-                </div>
-              </div>
-
-              {jobAnalysis.conflicts && jobAnalysis.conflicts.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
-                  <h3 className="text-sm font-medium text-amber-700 mb-3">Worth a conversation</h3>
-                  <div className="space-y-3">
-                    {jobAnalysis.conflicts.map((item, i) => (
-                      <div key={i}>
-                        <p className="text-sm text-gray-700">{item.observation}</p>
-                        {item.reflectingQuestion && (
-                          <p className="mt-1.5 text-sm text-amber-700 italic">{item.reflectingQuestion}</p>
-                        )}
-                      </div>
-                    ))}
+            {jobAnalysis && (
+              <div className="mt-8 space-y-4">
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <div className="text-xl font-medium text-green-700">{jobAnalysis.aligns?.length || 0}</div>
+                    <div className="text-xs text-green-600 mt-0.5">lines up</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-xl font-medium text-gray-700">{jobAnalysis.differences?.length || 0}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">heads up</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="text-xl font-medium text-gray-700">{jobAnalysis.unknowns?.length || 0}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">questions to ask</div>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-3">
+                    <div className="text-xl font-medium text-amber-700">{jobAnalysis.conflicts?.length || 0}</div>
+                    <div className="text-xs text-amber-600 mt-0.5">worth a conversation</div>
                   </div>
                 </div>
-              )}
 
-              {jobAnalysis.aligns && jobAnalysis.aligns.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-xl p-5">
-                  <h3 className="text-sm font-medium text-gray-800 mb-3">Where it lines up</h3>
-                  <p className="text-xs text-gray-400 mb-3">Hover over any item to see the detail.</p>
-                  <div className="flex flex-wrap gap-2">
-                    {jobAnalysis.aligns.map((item, i) => {
-                      const label = typeof item === 'object' ? item.label : item;
-                      const detail = typeof item === 'object' ? item.detail : item;
-                      return (
-                        <div key={i} className="relative group">
-                          <span className="inline-block text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-full cursor-default">
-                            {label}
-                          </span>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block w-56 bg-white border border-gray-200 rounded-lg p-2.5 text-xs text-gray-600 leading-relaxed z-10 pointer-events-none shadow-sm">
-                            {detail}
-                          </div>
+                {jobAnalysis.conflicts && jobAnalysis.conflicts.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+                    <h3 className="text-sm font-medium text-amber-700 mb-3">Worth a conversation</h3>
+                    <div className="space-y-3">
+                      {jobAnalysis.conflicts.map((item, i) => (
+                        <div key={i}>
+                          <p className="text-sm text-gray-700">{item.observation}</p>
+                          {item.reflectingQuestion && (
+                            <p className="mt-1.5 text-sm text-amber-700 italic">{item.reflectingQuestion}</p>
+                          )}
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {jobAnalysis.differences && jobAnalysis.differences.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-xl p-5">
-                  <h3 className="text-sm font-medium text-gray-800 mb-3">Heads up</h3>
-                  <div className="space-y-2">
-                    {jobAnalysis.differences.map((item, i) => (
-                      <p key={i} className="text-sm text-gray-500 pl-3 border-l-2 border-gray-200">{item}</p>
-                    ))}
+                {jobAnalysis.aligns && jobAnalysis.aligns.length > 0 && (
+                  <div className="bg-white border border-gray-200 rounded-xl p-5">
+                    <h3 className="text-sm font-medium text-gray-800 mb-3">Where it lines up</h3>
+                    <p className="text-xs text-gray-400 mb-3">Hover over any item to see detail.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {jobAnalysis.aligns.map((item, i) => {
+                        const label = typeof item === 'object' ? item.label : item
+                        const detail = typeof item === 'object' ? item.detail : item
+                        return (
+                          <div key={i} className="relative group">
+                            <span className="inline-block text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-full cursor-default">
+                              {label}
+                            </span>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block w-56 bg-white border border-gray-200 rounded-lg p-2.5 text-xs text-gray-600 leading-relaxed z-10 pointer-events-none shadow-sm">
+                              {detail}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {jobAnalysis.unknowns && jobAnalysis.unknowns.length > 0 && (
-                <div className="bg-white border border-gray-200 rounded-xl p-5">
-                  <h3 className="text-sm font-medium text-gray-800 mb-3">Questions worth asking</h3>
-                  <div className="space-y-2">
-                    {jobAnalysis.unknowns.map((item, i) => (
-                      <p key={i} className="text-sm text-gray-500 pl-3 border-l-2 border-gray-200">{item}</p>
-                    ))}
+                {jobAnalysis.differences && jobAnalysis.differences.length > 0 && (
+                  <div className="bg-white border border-gray-200 rounded-xl p-5">
+                    <h3 className="text-sm font-medium text-gray-800 mb-3">Heads up</h3>
+                    <div className="space-y-2">
+                      {jobAnalysis.differences.map((item, i) => (
+                        <p key={i} className="text-sm text-gray-500 pl-3 border-l-2 border-gray-200">{item}</p>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <p className="text-xs text-gray-400 text-center pt-2">
-                This analysis is based on what's captured in your Career Compass profile. It's a starting point for reflection, not a recommendation.
-              </p>
+                {jobAnalysis.unknowns && jobAnalysis.unknowns.length > 0 && (
+                  <div className="bg-white border border-gray-200 rounded-xl p-5">
+                    <h3 className="text-sm font-medium text-gray-800 mb-3">Questions worth asking</h3>
+                    <div className="space-y-2">
+                      {jobAnalysis.unknowns.map((item, i) => (
+                        <p key={i} className="text-sm text-gray-500 pl-3 border-l-2 border-gray-200">{item}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-            </div>
-          )}
-        </section>
+                <p className="text-xs text-gray-400 text-center pt-2">
+                  This analysis is based on what's captured in your Career Compass profile. It's a starting point for reflection, not a recommendation.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
 
-        <div className="pb-12 text-center">
+        <div className="pb-12 text-center mt-8">
           <p className="text-xs text-gray-300">Career Compass &mdash; {mentee.name}</p>
         </div>
       </div>
