@@ -29,7 +29,7 @@ const TAB_LABELS = [
   'Passions & Strengths',
   'Resume',
   'Target Roles',
-  'Job Evaluation',
+  'Job Eval',
 ]
 
 export default function MenteeView() {
