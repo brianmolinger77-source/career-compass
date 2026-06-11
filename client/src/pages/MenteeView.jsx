@@ -383,8 +383,7 @@ export default function MenteeView() {
       {/* Sticky tab nav */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm no-print">
         <div className="max-w-3xl mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex overflow-x-auto">
+          <div className="flex overflow-x-auto">
               {TAB_LABELS.map((label, idx) => {
                 const unlocked = tabUnlocked[idx]
                 const completed = completedTabs[idx]
@@ -416,15 +415,14 @@ export default function MenteeView() {
                   </button>
                 )
               })}
-            </div>
-            <div className="pl-4 shrink-0 text-right">
-              <span className="text-xs text-gray-400">Step {activeTab + 1} of 6</span>
-              <div className="w-16 bg-gray-100 rounded-full h-1 mt-1">
-                <div
-                  className="bg-[#1F4E79] h-1 rounded-full transition-all"
-                  style={{ width: `${((activeTab + 1) / 6) * 100}%` }}
-                />
-              </div>
+          </div>
+          <div className="flex items-center gap-2 px-3 pb-2">
+            <span className="text-xs text-gray-400">Step {activeTab + 1} of 6</span>
+            <div className="flex-1 bg-gray-100 rounded-full h-1">
+              <div
+                className="bg-[#1F4E79] h-1 rounded-full transition-all"
+                style={{ width: `${((activeTab + 1) / 6) * 100}%` }}
+              />
             </div>
           </div>
         </div>
