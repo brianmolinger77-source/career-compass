@@ -152,3 +152,23 @@ export function evaluateJobPosting(menteeId, jobPostingText) {
 export function getUsageStats() {
   return request('/api/mentor/usage')
 }
+
+export function analyzeTargetRole(menteeId, jobTitle, companyOrIndustry = '') {
+  return request('/api/analyze-target-role', {
+    method: 'POST',
+    body: JSON.stringify({ menteeId, jobTitle, companyOrIndustry })
+  })
+}
+
+export function generateTargetRolePattern(menteeId) {
+  return request('/api/generate-target-role-pattern', {
+    method: 'POST',
+    body: JSON.stringify({ menteeId })
+  })
+}
+
+export function deleteTargetRole(menteeId, roleId) {
+  return request(`/api/mentee/${menteeId}/target-roles/${roleId}`, {
+    method: 'DELETE'
+  })
+}

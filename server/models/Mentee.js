@@ -36,6 +36,17 @@ const jobAnalysisSchema = new mongoose.Schema({
   mentorFlagged:  { type: Boolean, default: true }
 }, { _id: false });
 
+const targetRoleSchema = new mongoose.Schema({
+  id:                { type: String },
+  jobTitle:          { type: String, default: '' },
+  companyOrIndustry: { type: String, default: '' },
+  aligns:            { type: [mongoose.Schema.Types.Mixed], default: [] },
+  differences:       { type: [String], default: [] },
+  unknowns:          { type: [String], default: [] },
+  conflicts:         { type: mongoose.Schema.Types.Mixed, default: [] },
+  analyzedAt:        { type: Date }
+}, { _id: false });
+
 // ── Main schema ───────────────────────────────────────────────────────────────
 
 const menteeSchema = new mongoose.Schema({
@@ -67,6 +78,8 @@ const menteeSchema = new mongoose.Schema({
   savedJobPostingText: { type: String, default: '' },
   pin:                  { type: String, default: '' },
   jobAnalyses:          { type: [jobAnalysisSchema], default: [] },
+  targetRoles:          { type: [targetRoleSchema], default: [] },
+  targetRolePattern:    { type: String, default: '' },
   mentorId:             { type: String, default: '' }
 }, {
   timestamps: false

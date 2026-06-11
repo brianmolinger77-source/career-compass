@@ -745,4 +745,232 @@ ${jobPostingText}`;
 });
 
 
+// ── POST /api/analyze-target-role ─────────────────────────────────────────────
+router.post('/analyze-target-role', async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+    const { menteeId, jobTitle, companyOrIndustry } = req.body;
+
+    if (!menteeId || !jobTitle) {
+      return res.status(400).json({ error: 'menteeId and jobTitle are required' });
+    }
+
+    const mentee = await Mentee.findOne({ id: menteeId });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    const hasRole = mentee.roles && mentee.roles.length > 0;
+    const hasTableStake = mentee.tableStakes && mentee.tableStakes.trim().length > 0;
+    const hasPSA = mentee.passions && mentee.passions.trim().length > 0
+                && mentee.strengths && mentee.strengths.trim().length > 0
+                && mentee.aspirations && mentee.aspirations.trim().length > 0;
+
+    if (!hasRole || !hasTableStake || !hasPSA) {
+      return res.status(400).json({
+        error: 'readiness_gate',
+        message: 'To use this feature, you need at least one career history entry, something in all three PSA fields, and at least one table stake.'
+      });
+    }
+
+    const profileText = `CAREER HISTORY:
+${mentee.roles.map((r, i) => `Role ${i + 1}: ${r.title || 'Untitled'} at ${r.organization || 'Unknown'} (${r.startYear || '?'} - ${r.endYear || 'Present'})
+What I Did: ${r.whatIDid || 'Not provided'}
+How I Did It: ${r.howIDidIt || 'Not provided'}
+The Impact: ${r.impact || 'Not provided'}`).join('\n\n')}
+
+PASSIONS: ${mentee.passions || 'Not provided'}
+STRENGTHS: ${mentee.strengths || 'Not provided'}
+ASPIRATIONS: ${mentee.aspirations || 'Not provided'}
+TABLE STAKES (non-negotiables): ${mentee.tableStakes || 'Not provided'}
+${mentee.themes && mentee.themes.length > 0 ? `CAREER THEMES: ${mentee.themes.join(', ')}` : ''}
+${mentee.resumeEducation && mentee.resumeEducation.length > 0 ? `EDUCATION: ${mentee.resumeEducation.join(', ')}` : ''}
+${mentee.resumeCertifications && mentee.resumeCertifications.length > 0 ? `CERTIFICATIONS: ${mentee.resumeCertifications.join(', ')}` : ''}`;
+
+    const systemPrompt = `${COACHING_PHILOSOPHY}
+
+You are supporting a military veteran in exploring whether a type of role is a good fit for them. The veteran has named a role they are interested in — not a specific job posting, but a category of work they are drawn to. Your job is to act as a mirror, not an advisor. You reflect the veteran's own words back to them in the context of this role type. You never tell them whether to pursue this path. You hold your conclusions loosely — the veteran may know things about themselves and about this role type that are not captured here.
+
+Analyze how well this role type fits this veteran's profile and return four buckets:
+
+ALIGNS — Where this veteran's specific documented experience, passions, strengths, aspirations, or themes suggest genuine fit for this type of role. Name both the role characteristic and the specific profile element it connects to. For each alignment, provide a short label (3-5 words, no punctuation) and a full explanation. Ground every item in something the veteran has actually written. If no clear alignments exist, return an empty array — do not manufacture encouragement.
+
+DIFFERENCES — Where this veteran's specific profile diverges from what this role type typically requires or rewards. Each difference must pass this test: could this observation be made about a different veteran with a completely different background considering this same role type? If yes, discard it — it must be specific to this veteran's profile. Before including any difference, complete this check: "This role type typically requires or rewards [X]. This veteran's profile specifically shows [Y]. These diverge because [Z]." If you cannot fill in all three blanks with specific reasoning, do not include the item. Frame genuine differences neutrally as observations, not problems. BANNED PATTERNS — never include: generic military-to-civilian transition observations, industry environment mismatch commentary, or any observation that would apply equally to any veteran regardless of their specific background.
+
+UNKNOWNS — Things about this role type the veteran should explore before pursuing it, where their profile does not give enough to assess fit. Frame these as questions worth investigating or discussing with their mentor.
+
+CONFLICTS — Maximum three items, selected in this priority order:
+1. Anything about this role type that directly contradicts a stated table stake
+2. Quality of life factors typical of this role type (travel, schedule, environment, pace) that conflict with something explicitly stated in the veteran's PSAs
+3. Credentials or qualifications commonly required for this role type that are not present in the veteran's profile
+
+For conflicts involving a table stake or quality of life factor, include a reflecting question in a mentor tone: "You've told us that [X] matters to you. Roles like this tend to involve [Y]. How does that sit with what you're looking for?"
+For conflicts involving missing credentials: "Roles like this often require [credential]. We don't see that in your profile yet — think about how you'd want to address that."
+
+CRITICAL CONSTRAINTS:
+- Never surface a conflict that cannot be grounded in something the veteran has explicitly written in their profile
+- Never infer preferences or values that are not stated
+- If fewer than three conflicts exist, return only what genuinely qualifies — do not pad to reach three
+- Output is preparation for a conversation, never a final assessment
+
+Return ONLY valid JSON in this exact format:
+{
+  "aligns": [
+    { "label": "3-5 word label", "detail": "full explanation connecting the role characteristic to the profile element" }
+  ],
+  "differences": ["difference 1", "difference 2"],
+  "unknowns": ["unknown 1", "unknown 2"],
+  "conflicts": [
+    { "observation": "the conflict", "reflectingQuestion": "the mentor-tone question" }
+  ]
+}`;
+
+    const userMessage = `Here is the veteran's career profile:
+
+${mentee.militaryBranch ? `Military branch: ${mentee.militaryBranch}\n` : ''}${profileText}
+
+Here is the role type the veteran is exploring:
+
+Job title: ${jobTitle}${companyOrIndustry ? `\nCompany or industry: ${companyOrIndustry}` : ''}`;
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }]
+    });
+
+    const rawText = response.content[0].text;
+
+    let result;
+    try {
+      const jsonMatch = rawText.match(/{[\s\S]*}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse target role analysis response:', parseErr);
+      return res.status(500).json({
+        error: 'Analysis unavailable right now — try again in a moment.'
+      });
+    }
+
+    const now = new Date();
+    const roleId = `target-${Date.now()}`;
+
+    if (!mentee.targetRoles) mentee.targetRoles = [];
+
+    const existingIdx = mentee.targetRoles.findIndex(
+      r => r.jobTitle.trim().toLowerCase() === jobTitle.trim().toLowerCase()
+    );
+
+    if (existingIdx >= 0) {
+      mentee.targetRoles[existingIdx] = {
+        id: mentee.targetRoles[existingIdx].id,
+        jobTitle,
+        companyOrIndustry: companyOrIndustry || '',
+        aligns: result.aligns || [],
+        differences: result.differences || [],
+        unknowns: result.unknowns || [],
+        conflicts: result.conflicts || [],
+        analyzedAt: now
+      };
+    } else {
+      mentee.targetRoles.push({
+        id: roleId,
+        jobTitle,
+        companyOrIndustry: companyOrIndustry || '',
+        aligns: result.aligns || [],
+        differences: result.differences || [],
+        unknowns: result.unknowns || [],
+        conflicts: result.conflicts || [],
+        analyzedAt: now
+      });
+    }
+
+    mentee.updatedAt = now;
+    mentee.markModified('targetRoles');
+    await mentee.save();
+    logUsage('analyze-target-role', mentee.id, mentee.mentorId, response.usage);
+
+    res.json({
+      roleId: existingIdx >= 0 ? mentee.targetRoles[existingIdx].id : roleId,
+      updated: existingIdx >= 0,
+      aligns: result.aligns || [],
+      differences: result.differences || [],
+      unknowns: result.unknowns || [],
+      conflicts: result.conflicts || [],
+      mentee
+    });
+  } catch (err) {
+    console.error('Error analyzing target role:', err);
+    res.status(500).json({
+      error: 'Analysis unavailable right now — try again in a moment.'
+    });
+  }
+});
+
+// ── POST /api/generate-target-role-pattern ────────────────────────────────────
+router.post('/generate-target-role-pattern', async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+    const { menteeId } = req.body;
+
+    if (!menteeId) {
+      return res.status(400).json({ error: 'menteeId is required' });
+    }
+
+    const mentee = await Mentee.findOne({ id: menteeId });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!mentee.targetRoles || mentee.targetRoles.length < 2) {
+      return res.status(400).json({ error: 'At least two target roles are required to generate a pattern.' });
+    }
+
+    const rolesText = mentee.targetRoles.map((r, i) =>
+      `Role ${i + 1}: ${r.jobTitle}${r.companyOrIndustry ? ` (${r.companyOrIndustry})` : ''}
+Aligns: ${r.aligns.map(a => typeof a === 'object' ? a.label : a).join(', ') || 'none'}
+Differences: ${r.differences.join(', ') || 'none'}
+Conflicts: ${r.conflicts.map(c => typeof c === 'object' ? c.observation : c).join(', ') || 'none'}`
+    ).join('\n\n');
+
+    const systemPrompt = `${COACHING_PHILOSOPHY}
+
+You are supporting a military veteran who has explored multiple target roles. Your job is to surface the pattern emerging across the roles they are drawn to. You are a mirror, not an advisor. You reflect what you observe in their choices — you do not tell them what to do with that information.
+
+Write 2-3 sentences that name the pattern honestly and specifically. Ground every observation in the actual roles and alignment data provided. Do not give generic career advice. Do not use consultant language. Write as if you are a trusted mentor sharing a quiet observation: "Here's what I'm noticing across the roles you've been exploring..."
+
+Return ONLY the pattern text — no JSON, no preamble, no headers. Plain sentences only.`;
+
+    const userMessage = `Here are the target roles this veteran has explored and their alignment results:
+
+${rolesText}`;
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 300,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }]
+    });
+
+    const pattern = response.content[0].text.trim();
+
+    mentee.targetRolePattern = pattern;
+    mentee.updatedAt = new Date();
+    await mentee.save();
+    logUsage('generate-target-role-pattern', mentee.id, mentee.mentorId, response.usage);
+
+    res.json({ pattern, mentee });
+  } catch (err) {
+    console.error('Error generating target role pattern:', err);
+    res.status(500).json({
+      error: 'Pattern generation unavailable right now — try again in a moment.'
+    });
+  }
+});
+
 module.exports = router;

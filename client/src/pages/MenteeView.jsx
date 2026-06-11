@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA } from '../utils/api'
+import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA, analyzeTargetRole, generateTargetRolePattern, deleteTargetRole } from '../utils/api'
 import RoleCard from '../components/RoleCard'
 import VennDiagram from '../components/VennDiagram'
 import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirations'
@@ -54,6 +54,11 @@ export default function MenteeView() {
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [jobEvalError, setJobEvalError] = useState(null)
   const [activeTab, setActiveTab] = useState(0)
+  const [targetRoleInput, setTargetRoleInput] = useState('')
+  const [targetRoleIndustry, setTargetRoleIndustry] = useState('')
+  const [isAnalyzingTargetRole, setIsAnalyzingTargetRole] = useState(false)
+  const [targetRoleError, setTargetRoleError] = useState(null)
+  const [isGeneratingPattern, setIsGeneratingPattern] = useState(false)
   const { saveStatus, setSaving, setSaved, setError: setSaveError } = useSaveStatus()
 
   async function handleEvaluateJobPosting() {
@@ -187,6 +192,49 @@ export default function MenteeView() {
   function handlePSAAnalysisComplete(analysis, updatedMentee) {
     setPSAAnalysis(analysis)
     if (updatedMentee) setMentee(updatedMentee)
+  }
+
+  async function handleAnalyzeTargetRole() {
+    setIsAnalyzingTargetRole(true)
+    setTargetRoleError(null)
+    try {
+      const result = await analyzeTargetRole(menteeId, targetRoleInput.trim(), targetRoleIndustry.trim())
+      setMentee(result.mentee)
+      if (result.updated) {
+        setTargetRoleError(null)
+      }
+      setTargetRoleInput('')
+      setTargetRoleIndustry('')
+    } catch (err) {
+      if (err.message && err.message.includes('readiness_gate')) {
+        setTargetRoleError('Complete your Career History, PSA, and Table Stakes before using this feature.')
+      } else {
+        setTargetRoleError('Analysis unavailable right now — try again in a moment.')
+      }
+    } finally {
+      setIsAnalyzingTargetRole(false)
+    }
+  }
+
+  async function handleGeneratePattern() {
+    setIsGeneratingPattern(true)
+    try {
+      const result = await generateTargetRolePattern(menteeId)
+      setMentee(result.mentee)
+    } catch (err) {
+      console.error('Failed to generate pattern:', err)
+    } finally {
+      setIsGeneratingPattern(false)
+    }
+  }
+
+  async function handleDeleteTargetRole(roleId) {
+    try {
+      const updated = await deleteTargetRole(menteeId, roleId)
+      setMentee(updated)
+    } catch (err) {
+      console.error('Failed to delete target role:', err)
+    }
   }
 
   async function handleAnalyzePSA() {
@@ -688,13 +736,198 @@ export default function MenteeView() {
         {/* Tab 4: Target Roles */}
         {activeTab === 4 && tabUnlocked[4] && (
           <section>
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
-              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-xl">🎯</span>
-              </div>
-              <h2 className="text-xl font-bold text-[#1F4E79] mb-3">Target Roles</h2>
-              <p className="text-gray-500 text-sm">This feature is coming soon. You'll be able to identify specific roles and companies you're targeting and map your experience to their requirements.</p>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-[#1F4E79]">Target Roles</h2>
+              <p className="text-gray-600 mt-2 leading-relaxed text-sm">
+                Add roles you're interested in exploring. The AI will map your Career Compass profile against each role type — not a specific posting, but the category of work itself. Over time, patterns will emerge across the roles you're drawn to.
+              </p>
             </div>
+
+            {/* Input form */}
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 mb-6">
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Job title <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    value={targetRoleInput}
+                    onChange={e => setTargetRoleInput(e.target.value)}
+                    placeholder="e.g. Project Manager, Operations Director, IT Program Manager"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company or industry <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input
+                    type="text"
+                    value={targetRoleIndustry}
+                    onChange={e => setTargetRoleIndustry(e.target.value)}
+                    placeholder="e.g. Healthcare, Financial Services, Lockheed Martin"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
+                  />
+                </div>
+                {targetRoleError && (
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{targetRoleError}</p>
+                )}
+                <button
+                  onClick={handleAnalyzeTargetRole}
+                  disabled={isAnalyzingTargetRole || !targetRoleInput.trim()}
+                  className="bg-[#1F4E79] hover:bg-[#163d5e] text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
+                >
+                  {isAnalyzingTargetRole ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>&#10022; Analyze This Role</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Pattern callout — appears after 2+ roles saved */}
+            {mentee.targetRoles && mentee.targetRoles.length >= 2 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-[#1F4E79] mb-1">Pattern emerging across your target roles</h3>
+                    {mentee.targetRolePattern ? (
+                      <p className="text-sm text-gray-700 leading-relaxed">{mentee.targetRolePattern}</p>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">Pattern not yet generated.</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleGeneratePattern}
+                    disabled={isGeneratingPattern}
+                    className="shrink-0 text-xs text-[#1F4E79] border border-[#1F4E79] hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {isGeneratingPattern ? 'Generating...' : mentee.targetRolePattern ? 'Refresh' : 'Generate Pattern'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Saved roles list */}
+            {mentee.targetRoles && mentee.targetRoles.length > 0 && (
+              <div className="space-y-6">
+                {mentee.targetRoles.map(role => (
+                  <div key={role.id} className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="text-base font-bold text-[#1F4E79]">{role.jobTitle}</h3>
+                        {role.companyOrIndustry && (
+                          <p className="text-sm text-gray-500 mt-0.5">{role.companyOrIndustry}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteTargetRole(role.id)}
+                        className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {/* Summary cards */}
+                    <div className="grid grid-cols-4 gap-2 mb-4">
+                      <div className="bg-green-50 rounded-lg p-3">
+                        <div className="text-xl font-medium text-green-700">{role.aligns?.length || 0}</div>
+                        <div className="text-xs text-green-600 mt-0.5">lines up</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="text-xl font-medium text-gray-700">{role.differences?.length || 0}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">heads up</div>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="text-xl font-medium text-gray-700">{role.unknowns?.length || 0}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">questions to ask</div>
+                      </div>
+                      <div className="bg-amber-50 rounded-lg p-3">
+                        <div className="text-xl font-medium text-amber-700">{role.conflicts?.length || 0}</div>
+                        <div className="text-xs text-amber-600 mt-0.5">worth a conversation</div>
+                      </div>
+                    </div>
+
+                    {/* Aligns chips */}
+                    {role.aligns && role.aligns.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs font-medium text-gray-500 mb-2">Where it lines up</p>
+                        <p className="text-xs text-gray-400 mb-2">Hover over any item to see detail.</p>
+                        <div className="flex flex-wrap gap-2">
+                          {role.aligns.map((item, i) => {
+                            const label = typeof item === 'object' ? item.label : item
+                            const detail = typeof item === 'object' ? item.detail : item
+                            return (
+                              <div key={i} className="relative group">
+                                <span className="inline-block text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-full cursor-default">
+                                  {label}
+                                </span>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block w-56 bg-white border border-gray-200 rounded-lg p-2.5 text-xs text-gray-600 leading-relaxed z-10 pointer-events-none shadow-sm">
+                                  {detail}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Conflicts */}
+                    {role.conflicts && role.conflicts.length > 0 && (
+                      <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <p className="text-xs font-medium text-amber-700 mb-2">Worth a conversation</p>
+                        <div className="space-y-3">
+                          {role.conflicts.map((item, i) => (
+                            <div key={i}>
+                              <p className="text-sm text-gray-700">{item.observation}</p>
+                              {item.reflectingQuestion && (
+                                <p className="mt-1 text-sm text-amber-700 italic">{item.reflectingQuestion}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Differences */}
+                    {role.differences && role.differences.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-xs font-medium text-gray-500 mb-2">Heads up</p>
+                        <div className="space-y-1">
+                          {role.differences.map((item, i) => (
+                            <p key={i} className="text-sm text-gray-500 pl-3 border-l-2 border-gray-200">{item}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Unknowns */}
+                    {role.unknowns && role.unknowns.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-2">Questions worth asking</p>
+                        <div className="space-y-1">
+                          {role.unknowns.map((item, i) => (
+                            <p key={i} className="text-sm text-gray-500 pl-3 border-l-2 border-gray-200">{item}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-400 mt-4">This analysis is based on what's captured in your Career Compass profile. It's a starting point for reflection, not a recommendation.</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {(!mentee.targetRoles || mentee.targetRoles.length === 0) && (
+              <div className="text-center py-8">
+                <p className="text-gray-400 text-sm">No target roles added yet. Use the form above to explore roles you're interested in.</p>
+              </div>
+            )}
           </section>
         )}
 

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const Mentee = require('../models/Mentee');
 
@@ -104,6 +105,25 @@ router.post('/:id/verify-pin', async (req, res) => {
   } catch (err) {
     console.error('Error verifying PIN:', err);
     res.status(500).json({ error: 'Failed to verify PIN' });
+  }
+});
+
+// ── POST /:id/target-roles — delete a target role ─────────────────────────────
+router.delete('/:id/target-roles/:roleId', async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+    const mentee = await Mentee.findOne({ id: req.params.id });
+    if (!mentee) return res.status(404).json({ error: 'Mentee not found' });
+
+    mentee.targetRoles = (mentee.targetRoles || []).filter(r => r.id !== req.params.roleId);
+    mentee.updatedAt = new Date();
+    mentee.markModified('targetRoles');
+    await mentee.save();
+
+    res.json(mentee);
+  } catch (err) {
+    console.error('Error deleting target role:', err);
+    res.status(500).json({ error: 'Failed to delete target role' });
   }
 });
 
