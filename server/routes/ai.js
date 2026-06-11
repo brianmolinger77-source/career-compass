@@ -748,7 +748,6 @@ ${jobPostingText}`;
 // ── POST /api/analyze-target-role ─────────────────────────────────────────────
 router.post('/analyze-target-role', async (req, res) => {
   try {
-    await mongoose.connection.asPromise();
     const { menteeId, jobTitle, companyOrIndustry } = req.body;
 
     if (!menteeId || !jobTitle) {
@@ -915,7 +914,6 @@ Job title: ${jobTitle}${companyOrIndustry ? `\nCompany or industry: ${companyOrI
 // ── POST /api/generate-target-role-pattern ────────────────────────────────────
 router.post('/generate-target-role-pattern', async (req, res) => {
   try {
-    await mongoose.connection.asPromise();
     const { menteeId } = req.body;
 
     if (!menteeId) {
