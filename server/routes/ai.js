@@ -971,4 +971,125 @@ ${rolesText}`;
   }
 });
 
+
+// ── POST /api/generate-session-prep ──────────────────────────────────────────
+router.post('/generate-session-prep', async (req, res) => {
+  try {
+    const { menteeId, sessionPrepInput } = req.body;
+
+    if (!menteeId) {
+      return res.status(400).json({ error: 'menteeId is required' });
+    }
+
+    const mentee = await Mentee.findOne({ id: menteeId });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    // Build a snapshot of where the veteran is in the funnel
+    const completedRoles = (mentee.roles || []).filter(r => r.whatIDid && r.howIDidIt && r.impact);
+    const rolesWithFeedback = (mentee.roles || []).filter(r => r.aiFeedback);
+    const hasNarrative = !!mentee.generatedNarrative;
+    const hasPSA = !!(mentee.passions && mentee.strengths && mentee.aspirations);
+    const hasPSAAnalysis = !!mentee.psaAnalysis;
+    const hasTableStakes = !!mentee.tableStakes;
+    const targetRoles = (mentee.targetRoles || []).map(r => r.jobTitle).filter(Boolean);
+    const hasJobAnalyses = (mentee.jobAnalyses || []).length > 0;
+
+    const funnelSnapshot = `
+VETERAN PROFILE SNAPSHOT:
+- Name: ${mentee.name}
+- Military branch: ${mentee.militaryBranch || 'not specified'}
+- Career history: ${completedRoles.length} fully completed role(s) out of ${mentee.roles.length} total
+- Roles with AI feedback: ${rolesWithFeedback.length}
+- Career narrative: ${hasNarrative ? 'generated' : 'not yet generated'}
+- Passions, Strengths & Aspirations: ${hasPSA ? 'completed' : 'not yet completed'}
+- PSA analysis: ${hasPSAAnalysis ? 'completed' : 'not yet completed'}
+- Table stakes: ${hasTableStakes ? 'completed' : 'not yet completed'}
+- Target roles explored: ${targetRoles.length > 0 ? targetRoles.join(', ') : 'none yet'}
+- Job postings evaluated: ${hasJobAnalyses ? 'yes' : 'none yet'}
+${mentee.tableStakes ? `- Table stakes (non-negotiables): ${mentee.tableStakes}` : ''}
+${targetRoles.length > 0 ? `- Target roles: ${targetRoles.join(', ')}` : ''}`;
+
+    const systemPrompt = `You are an expert career coach helping military veterans prepare for productive career coaching sessions. You have deep experience helping veterans translate their service experience into civilian career language.
+
+Your job is to take a veteran's free-form thoughts about what they want to cover in their next session, combine that with where they are in their career development process, and produce a structured 60-minute session plan.
+
+The output must be specific, actionable, and grounded in the veteran's actual situation. Generic agenda items are a failure. Every item must reflect something real about this veteran's progress, gaps, or goals.
+
+The session plan works equally well for two scenarios:
+1. A veteran preparing for a call with their mentor
+2. A veteran working through their development independently
+
+Frame each item so it is clear what needs to be brought, decided, or resolved — not just what topic will be discussed.
+
+Return your response as JSON in this exact format:
+{
+  "sessionGoal": "One sentence capturing the primary outcome this session should achieve, based on the veteran's input and where they are in the process.",
+  "agendaItems": [
+    {
+      "title": "Short title for this agenda item",
+      "minutes": 15,
+      "description": "Specific description of what to cover — grounded in the veteran's actual content, not generic category language.",
+      "prepNote": "One sentence on what to bring, decide, or resolve in this block. If working with a mentor, this is what the mentor should be prepared to help with."
+    }
+  ],
+  "totalMinutes": 60
+}
+
+Rules:
+- 3 to 5 agenda items
+- Minutes across all items must add to exactly 60
+- Every description must reference something specific to this veteran — their roles, their gaps, their targets, their table stakes
+- Generic language like "discuss career goals" or "review progress" is not acceptable
+- If the veteran's input mentions something specific, prioritize it
+- If there are clear gaps in their funnel progress, surface those as agenda items
+- totalMinutes must always be 60`;
+
+    const userMessage = `Here is what the veteran wants to focus on in their next session:
+
+"${sessionPrepInput || 'No specific input provided — generate a plan based on where I am in the process.'}"
+
+${funnelSnapshot}`;
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 1500,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }]
+    });
+
+    const rawText = response.content[0].text;
+
+    let agenda;
+    try {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        agenda = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse session prep response:', parseErr);
+      return res.status(500).json({
+        error: 'Session prep unavailable right now — try again in a moment.'
+      });
+    }
+
+    // Persist input and agenda to mentee record
+    mentee.sessionPrepInput = sessionPrepInput || '';
+    mentee.sessionPrepAgenda = agenda;
+    mentee.updatedAt = new Date();
+    await mentee.save();
+    logUsage('generate-session-prep', mentee.id, mentee.mentorId, response.usage);
+
+    res.json({ agenda, mentee });
+  } catch (err) {
+    console.error('Error generating session prep:', err);
+    res.status(500).json({
+      error: 'Session prep unavailable right now — try again in a moment.'
+    });
+  }
+});
+
 module.exports = router;

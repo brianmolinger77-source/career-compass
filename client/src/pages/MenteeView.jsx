@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA, analyzeTargetRole, generateTargetRolePattern, deleteTargetRole } from '../utils/api'
+import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA, analyzeTargetRole, generateTargetRolePattern, deleteTargetRole, generateSessionPrep } from '../utils/api'
 import RoleCard from '../components/RoleCard'
 import VennDiagram from '../components/VennDiagram'
 import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirations'
@@ -59,6 +59,12 @@ export default function MenteeView() {
   const [isAnalyzingTargetRole, setIsAnalyzingTargetRole] = useState(false)
   const [targetRoleError, setTargetRoleError] = useState(null)
   const [isGeneratingPattern, setIsGeneratingPattern] = useState(false)
+  const [showSessionPrep, setShowSessionPrep] = useState(false)
+  const [sessionPrepInput, setSessionPrepInput] = useState('')
+  const [sessionPrepAgenda, setSessionPrepAgenda] = useState(null)
+  const [sessionPrepNotes, setSessionPrepNotes] = useState('')
+  const [isGeneratingSessionPrep, setIsGeneratingSessionPrep] = useState(false)
+  const [sessionPrepError, setSessionPrepError] = useState(null)
   const { saveStatus, setSaving, setSaved, setError: setSaveError } = useSaveStatus()
 
   async function handleEvaluateJobPosting() {
@@ -96,6 +102,9 @@ export default function MenteeView() {
       setCareerThread(data.careerThread || '')
       setJobPostingText(data.savedJobPostingText || '')
       if (data.psaAnalysis) setPSAAnalysis(data.psaAnalysis)
+        if (data.sessionPrepInput) setSessionPrepInput(data.sessionPrepInput)
+        if (data.sessionPrepAgenda) setSessionPrepAgenda(data.sessionPrepAgenda)
+        if (data.sessionPrepNotes) setSessionPrepNotes(data.sessionPrepNotes)
     } catch (err) {
       if (err.message?.includes('not found') || err.message?.includes('404')) {
         setNotFound(true)
@@ -410,6 +419,18 @@ export default function MenteeView() {
                 className="text-sm text-blue-200 hover:text-white border border-blue-400 hover:border-white px-3 py-1.5 rounded-lg transition-colors"
               >
                 Print / Save PDF
+              </button>
+              <button
+                onClick={() => setShowSessionPrep(!showSessionPrep)}
+                disabled={!roles.length}
+                className={`text-sm px-3 py-1.5 rounded-lg transition-colors border ${
+                  roles.length
+                    ? 'text-white border-white bg-blue-700 hover:bg-blue-600'
+                    : 'text-blue-400 border-blue-700 cursor-not-allowed opacity-50'
+                }`}
+                title={!roles.length ? "Add at least one career role to use Session Prep" : ""}
+              >
+                {showSessionPrep ? "Close Session Prep" : "Prepare for My Session"}
               </button>
             </div>
           </div>
@@ -1053,6 +1074,102 @@ export default function MenteeView() {
               </div>
             )}
           </section>
+        )}
+
+        {/* Session Prep Panel */}
+        {showSessionPrep && (
+          <div className="max-w-3xl mx-auto px-4 pb-8">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <h2 className="text-lg font-bold text-[#1F4E79] mb-1">Prepare for My Session</h2>
+              <p className="text-sm text-gray-500 mb-5">Write freely about what's on your mind — what feels unresolved, what's changed, what you want help with. The AI will shape it into a structured 60-minute focus plan.</p>
+
+              <textarea
+                value={sessionPrepInput}
+                onChange={e => setSessionPrepInput(e.target.value)}
+                onBlur={async () => {
+                  if (sessionPrepInput !== (mentee.sessionPrepInput || '')) {
+                    setSaving()
+                    try {
+                      const updated = await updateMentee(menteeId, { sessionPrepInput })
+                      setMentee(updated)
+                      setSaved()
+                    } catch { setSaveError() }
+                  }
+                }}
+                placeholder="What's on your mind going into your next session?"
+                rows={5}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-200 mb-4"
+              />
+
+              <button
+                onClick={async () => {
+                  setIsGeneratingSessionPrep(true)
+                  setSessionPrepError(null)
+                  try {
+                    const result = await generateSessionPrep(menteeId, sessionPrepInput)
+                    setSessionPrepAgenda(result.agenda)
+                    setMentee(result.mentee)
+                  } catch (err) {
+                    setSessionPrepError("Session prep unavailable right now — try again in a moment.")
+                  } finally {
+                    setIsGeneratingSessionPrep(false)
+                  }
+                }}
+                disabled={isGeneratingSessionPrep}
+                className="bg-[#1F4E79] text-white text-sm px-5 py-2.5 rounded-xl hover:bg-blue-800 transition-colors disabled:opacity-50 mb-6"
+              >
+                {isGeneratingSessionPrep ? "Building your session plan..." : "Generate Session Plan"}
+              </button>
+
+              {sessionPrepError && (
+                <p className="text-red-500 text-sm mb-4">{sessionPrepError}</p>
+              )}
+
+              {sessionPrepAgenda && (
+                <div className="mb-6">
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4">
+                    <p className="text-sm font-semibold text-[#1F4E79] mb-1">Session goal</p>
+                    <p className="text-sm text-gray-700">{sessionPrepAgenda.sessionGoal}</p>
+                  </div>
+                  <div className="space-y-3">
+                    {(sessionPrepAgenda.agendaItems || []).map((item, idx) => (
+                      <div key={idx} className="border border-gray-100 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-semibold text-gray-800">{item.title}</p>
+                          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{item.minutes} min</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{item.description}</p>
+                        <p className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">{item.prepNote}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 text-right mt-2">Total: {sessionPrepAgenda.totalMinutes} minutes</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Key takeaways and next steps</label>
+                <p className="text-xs text-gray-400 mb-3">After your session, capture what you decided and what you're doing next.</p>
+                <textarea
+                  value={sessionPrepNotes}
+                  onChange={e => setSessionPrepNotes(e.target.value)}
+                  onBlur={async () => {
+                    if (sessionPrepNotes !== (mentee.sessionPrepNotes || '')) {
+                      setSaving()
+                      try {
+                        const updated = await updateMentee(menteeId, { sessionPrepNotes })
+                        setMentee(updated)
+                        setSaved()
+                      } catch { setSaveError() }
+                    }
+                  }}
+                  placeholder="What did you decide? What are you doing next?"
+                  rows={4}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-blue-200"
+                />
+              </div>
+            </div>
+          </div>
         )}
 
         <div className="pb-12 text-center mt-8">

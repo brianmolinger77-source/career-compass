@@ -80,7 +80,10 @@ const menteeSchema = new mongoose.Schema({
   jobAnalyses:          { type: [jobAnalysisSchema], default: [] },
   targetRoles:          { type: [targetRoleSchema], default: [] },
   targetRolePattern:    { type: String, default: '' },
-  mentorId:             { type: String, default: '' }
+  mentorId:             { type: String, default: '' },
+  sessionPrepInput:     { type: String, default: '' },
+  sessionPrepAgenda:    { type: mongoose.Schema.Types.Mixed, default: null },
+  sessionPrepNotes:     { type: String, default: '' }
 }, {
   timestamps: false
 });

@@ -172,3 +172,10 @@ export function deleteTargetRole(menteeId, roleId) {
     method: 'DELETE'
   })
 }
+
+export function generateSessionPrep(menteeId, sessionPrepInput) {
+  return request('/api/generate-session-prep', {
+    method: 'POST',
+    body: JSON.stringify({ menteeId, sessionPrepInput })
+  })
+}
