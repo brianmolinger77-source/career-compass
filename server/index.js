@@ -26,7 +26,18 @@ mongoose.connection.on('error', (err) => console.error('MongoDB connection error
 mongoose.connect(mongoUri, { dbName: 'test' }).catch(err => console.error('MongoDB initial connection failed:', err));
 
 app.use(cors({
-  origin: true,       // mirrors request origin — works locally and on Vercel
+  origin: function (origin, callback) {
+    const allowed = [
+      process.env.FRONTEND_URL,
+      'http://localhost:5173',
+      'http://localhost:3001'
+    ].filter(Boolean);
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
