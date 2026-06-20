@@ -60,6 +60,7 @@ export default function MenteeView() {
   const [targetRoleError, setTargetRoleError] = useState(null)
   const [isGeneratingPattern, setIsGeneratingPattern] = useState(false)
   const [showSessionPrep, setShowSessionPrep] = useState(false)
+  const sessionPrepRef = useRef(null)
   const [sessionPrepInput, setSessionPrepInput] = useState('')
   const [sessionPrepAgenda, setSessionPrepAgenda] = useState(null)
   const [sessionPrepNotes, setSessionPrepNotes] = useState('')
@@ -90,6 +91,12 @@ export default function MenteeView() {
     loadMentee()
   }, [menteeId])
 
+
+  useEffect(() => {
+    if (showSessionPrep && sessionPrepRef.current) {
+      sessionPrepRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [showSessionPrep])
   async function loadMentee() {
     try {
       const auth = await checkAuth()
@@ -1078,7 +1085,7 @@ export default function MenteeView() {
 
         {/* Session Prep Panel */}
         {showSessionPrep && (
-          <div className="max-w-3xl mx-auto px-4 pb-8">
+          <div ref={sessionPrepRef} className="max-w-3xl mx-auto px-4 pb-8">
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
               <h2 className="text-lg font-bold text-[#1F4E79] mb-1">Prepare for My Session</h2>
               <p className="text-sm text-gray-500 mb-5">Write freely about what's on your mind — what feels unresolved, what's changed, what you want help with. The AI will shape it into a structured 60-minute focus plan.</p>
