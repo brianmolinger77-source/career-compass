@@ -71,9 +71,12 @@ export default function MentorDashboard() {
   const [notesOpen, setNotesOpen] = useState({})
   const [notesValues, setNotesValues] = useState({})
 
+  const [notesSaved, setNotesSaved] = useState({})
   async function handleSaveNotes(menteeId) {
     try {
       await saveMentorNotes(menteeId, notesValues[menteeId] ?? '')
+      setNotesSaved(prev => ({ ...prev, [menteeId]: true }))
+      setTimeout(() => setNotesSaved(prev => ({ ...prev, [menteeId]: false })), 2000)
     } catch (err) {
       console.error('Failed to save notes:', err)
     }
@@ -560,7 +563,7 @@ export default function MentorDashboard() {
                             onClick={() => handleSaveNotes(mentee.id)}
                             className="text-xs bg-[#1F4E79] hover:bg-[#1a4268] text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
                           >
-                            Save notes
+                            {notesSaved[mentee.id] ? 'Saved ✓' : 'Save notes'}
                           </button>
                         </div>
                       )}
