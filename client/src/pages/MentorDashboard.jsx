@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getMentees, createMentee, logout, checkAuth, getMentors, assignMentee, updateMenteePin, getUsageStats } from '../utils/api'
+import { getMentees, createMentee, logout, checkAuth, getMentors, assignMentee, updateMenteePin, getUsageStats, saveMentorNotes } from '../utils/api'
 
 function calcCompletion(mentee) {
   const roles = mentee.roles || []
@@ -68,6 +68,17 @@ export default function MentorDashboard() {
   const [pinSuccess, setPinSuccess] = useState(null)
   const navigate = useNavigate()
 
+  const [notesOpen, setNotesOpen] = useState({})
+  const [notesValues, setNotesValues] = useState({})
+
+  async function handleSaveNotes(menteeId) {
+    try {
+      await saveMentorNotes(menteeId, notesValues[menteeId] ?? '')
+    } catch (err) {
+      console.error('Failed to save notes:', err)
+    }
+  }
+
   useEffect(() => {
     async function init() {
       try {
@@ -84,6 +95,7 @@ export default function MentorDashboard() {
     try {
       const data = await getMentees()
       setMentees(data)
+      setNotesValues(Object.fromEntries(data.map(m => [m.id, m.mentorNotes || ''])))
     } catch (err) {
       console.error('Failed to load mentees:', err)
     } finally {
@@ -517,6 +529,43 @@ export default function MentorDashboard() {
                   >
                     Open Document
                   </Link>
+
+                  {/* Session notes */}
+                  {!adminView && (
+                    <div className="border-t border-gray-100 pt-3">
+                      <button
+                        onClick={() => setNotesOpen(prev => ({ ...prev, [mentee.id]: !prev[mentee.id] }))}
+                        className="w-full flex items-center justify-between text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {notesValues[mentee.id] && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                          )}
+                          Session notes
+                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className={"w-3.5 h-3.5 transition-transform " + (notesOpen[mentee.id] ? "rotate-180" : "")} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {notesOpen[mentee.id] && (
+                        <div className="mt-2 space-y-2">
+                          <textarea
+                            value={notesValues[mentee.id] ?? ''}
+                            onChange={e => setNotesValues(prev => ({ ...prev, [mentee.id]: e.target.value }))}
+                            rows={3}
+                            placeholder="Notes visible only to you..."
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent"
+                          />
+                          <button
+                            onClick={() => handleSaveNotes(mentee.id)}
+                            className="text-xs bg-[#1F4E79] hover:bg-[#1a4268] text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                          >
+                            Save notes
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}

@@ -83,7 +83,8 @@ const menteeSchema = new mongoose.Schema({
   mentorId:             { type: String, default: '' },
   sessionPrepInput:     { type: String, default: '' },
   sessionPrepAgenda:    { type: mongoose.Schema.Types.Mixed, default: null },
-  sessionPrepNotes:     { type: String, default: '' }
+  sessionPrepNotes:     { type: String, default: '' },
+  mentorNotes:          { type: String, default: '' }
 }, {
   timestamps: false
 });

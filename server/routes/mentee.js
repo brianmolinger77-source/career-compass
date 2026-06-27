@@ -127,4 +127,23 @@ router.delete('/:id/target-roles/:roleId', async (req, res) => {
   }
 });
 
+
+// ── PATCH /api/mentee/:id/mentor-notes ───────────────────────────────────────
+router.patch('/:id/mentor-notes', async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+    const mentee = await Mentee.findOne({ id: req.params.id });
+    if (!mentee) return res.status(404).json({ error: 'Mentee not found' });
+
+    mentee.mentorNotes = req.body.mentorNotes ?? '';
+    mentee.updatedAt = new Date();
+    await mentee.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error saving mentor notes:', err);
+    res.status(500).json({ error: 'Failed to save mentor notes' });
+  }
+});
+
 module.exports = router;

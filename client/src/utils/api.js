@@ -179,3 +179,10 @@ export function generateSessionPrep(menteeId, sessionPrepInput) {
     body: JSON.stringify({ menteeId, sessionPrepInput })
   })
 }
+
+export function saveMentorNotes(menteeId, mentorNotes) {
+  return request(`/api/mentee/${menteeId}/mentor-notes`, {
+    method: 'PATCH',
+    body: JSON.stringify({ mentorNotes })
+  })
+}
