@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA, analyzeTargetRole, generateTargetRolePattern, deleteTargetRole, generateSessionPrep } from '../utils/api'
+import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA, analyzeTargetRole, generateTargetRolePattern, deleteTargetRole, generateSessionPrep, verifyPin } from '../utils/api'
 import RoleCard from '../components/RoleCard'
 import VennDiagram from '../components/VennDiagram'
 import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirations'
@@ -275,13 +275,7 @@ export default function MenteeView() {
   async function handlePinSubmit() {
     setPinError(null)
     try {
-      const res = await fetch('/api/mentee/' + menteeId + '/verify-pin', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinInput })
-      })
-      const data = await res.json()
+      const data = await verifyPin(menteeId, pinInput)
       if (data.verified) {
         setPinVerified(true)
         loadMentee()
@@ -380,7 +374,7 @@ export default function MenteeView() {
     !!mentee.generatedNarrative,
     psaAndStakesComplete,
     psaAndStakesComplete,
-    roles.length >= 1 && !!(mentee.passions?.trim() && mentee.strengths?.trim() && mentee.aspirations?.trim() && mentee.tableStakes?.trim()),
+    roles.length >= 1 && psaAndStakesComplete,
   ]
 
   const lockMessages = [
@@ -388,7 +382,7 @@ export default function MenteeView() {
     'Add at least one role in Career History to unlock this.',
     'Generate your story in My Story to unlock this.',
     'Complete your Passions, Strengths, Aspirations, and Table Stakes to unlock this.',
-    'Complete your Passions, Strengths, Aspirations, and Table Stakes to unlock this.',
+    'Add at least 2 roles with content and complete your PSA to unlock this.',
     'Complete Career History and all PSA fields to unlock this.',
   ]
 

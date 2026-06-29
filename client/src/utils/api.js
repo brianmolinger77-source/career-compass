@@ -186,3 +186,10 @@ export function saveMentorNotes(menteeId, mentorNotes) {
     body: JSON.stringify({ mentorNotes })
   })
 }
+
+export function verifyPin(menteeId, pin) {
+  return request(`/api/mentee/${menteeId}/verify-pin`, {
+    method: 'POST',
+    body: JSON.stringify({ pin })
+  })
+}

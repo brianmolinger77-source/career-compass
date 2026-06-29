@@ -131,7 +131,7 @@ Provide specific, actionable feedback to help translate this into compelling civ
     mentee.updatedAt = now;
     mentee.markModified('roles');   // required: roles contains a Mixed field (aiFeedback)
     await mentee.save();
-    logUsage('analyze-role', mentee.id, mentee.mentorId, response.usage);
+    await logUsage('analyze-role', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ feedback, mentee });
   } catch (err) {
@@ -255,7 +255,7 @@ Please write their civilian career narrative and provide themes and feedback.`;
       mentee.careerThread = careerThreadFromRequest;
     }
     await mentee.save();
-    logUsage('generate-narrative', mentee.id, mentee.mentorId, response.usage);
+    await logUsage('generate-narrative', mentee.id, mentee.mentorId, response.usage);
 
     res.json({
       narrative: result.narrative,
@@ -350,7 +350,7 @@ ${mentee.aspirations || '(not provided)'}`;
     mentee.updatedAt = now;
     mentee.markModified('psaAnalysis');
     await mentee.save();
-    logUsage('analyze-psa', mentee.id, mentee.mentorId, response.usage);
+    await logUsage('analyze-psa', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ analysis: mentee.psaAnalysis, mentee });
   } catch (err) {
@@ -486,7 +486,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
     mentee.updatedAt = now;
     mentee.markModified('resumeBullets');
     await mentee.save();
-    logUsage('generate-resume-bullets', mentee.id, mentee.mentorId, response.usage);
+    await logUsage('generate-resume-bullets', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ roleBullets: result.bullets, resumeSummary: result.summary || '', resumeGeneratedAt: now, mentee });
   } catch (err) {
@@ -577,7 +577,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
     mentee.resumeSummary = result.summary || '';
     mentee.updatedAt = now;
     await mentee.save();
-    logUsage('regenerate-summary', mentee.id, mentee.mentorId, response.usage);
+    await logUsage('regenerate-summary', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ resumeSummary: result.summary || '', mentee });
   } catch (err) {
@@ -724,7 +724,7 @@ ${jobPostingText}`;
     mentee.updatedAt = now;
     mentee.markModified('jobAnalyses');
     await mentee.save();
-    logUsage('evaluate-job-posting', mentee.id, mentee.mentorId, response.usage);
+    await logUsage('evaluate-job-posting', mentee.id, mentee.mentorId, response.usage);
 
     res.json({
       analysisId,
@@ -892,7 +892,7 @@ Job title: ${jobTitle}${companyOrIndustry ? `\nCompany or industry: ${companyOrI
     mentee.updatedAt = now;
     mentee.markModified('targetRoles');
     await mentee.save();
-    logUsage('analyze-target-role', mentee.id, mentee.mentorId, response.usage);
+    await logUsage('analyze-target-role', mentee.id, mentee.mentorId, response.usage);
 
     res.json({
       roleId: existingIdx >= 0 ? mentee.targetRoles[existingIdx].id : roleId,
@@ -960,7 +960,7 @@ ${rolesText}`;
     mentee.targetRolePattern = pattern;
     mentee.updatedAt = new Date();
     await mentee.save();
-    logUsage('generate-target-role-pattern', mentee.id, mentee.mentorId, response.usage);
+    await logUsage('generate-target-role-pattern', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ pattern, mentee });
   } catch (err) {
@@ -1081,7 +1081,7 @@ ${funnelSnapshot}`;
     mentee.sessionPrepAgenda = agenda;
     mentee.updatedAt = new Date();
     await mentee.save();
-    logUsage('generate-session-prep', mentee.id, mentee.mentorId, response.usage);
+    await logUsage('generate-session-prep', mentee.id, mentee.mentorId, response.usage);
 
     res.json({ agenda, mentee });
   } catch (err) {

@@ -4,14 +4,39 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const Mentee = require('../models/Mentee');
 
+// ── Middleware ───────────────────────────────────────────────────────────────
+function requireMentor(req, res, next) {
+  if (req.session && req.session.isMentor === true) {
+    return next();
+  }
+  res.status(401).json({ error: 'Unauthorized — mentor login required' });
+}
+function requireMenteeOrMentor(req, res, next) {
+  if (req.session && req.session.isMentor === true) return next();
+  if (req.session && req.session.verifiedMenteeId) return next();
+  res.status(401).json({ error: 'Unauthorized' });
+}
+
+function isMenteeAuthorized(menteeId, req) {
+  if (req.session && req.session.isMentor === true) return true;
+  return req.session && req.session.verifiedMenteeId === menteeId;
+}
+
+
+
 // ── GET /api/mentee/:id ───────────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
     }
-    res.json(mentee);
+    const data = mentee.toJSON();
+    if (!req.session || !req.session.isMentor) {
+      delete data.mentorNotes;
+    }
+    res.json(data);
   } catch (err) {
     console.error('Error reading mentee:', err);
     res.status(500).json({ error: 'Failed to read mentee data' });
@@ -19,11 +44,15 @@ router.get('/:id', async (req, res) => {
 });
 
 // ── PUT /api/mentee/:id ───────────────────────────────────────────────────────
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireMenteeOrMentor, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+    if (!isMenteeAuthorized(req.params.id, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     // Merge update — protect immutable fields
@@ -43,11 +72,15 @@ router.put('/:id', async (req, res) => {
 });
 
 // ── POST /api/mentee/:id/roles ────────────────────────────────────────────────
-router.post('/:id/roles', async (req, res) => {
+router.post('/:id/roles', requireMenteeOrMentor, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+    if (!isMenteeAuthorized(req.params.id, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     mentee.roles.push({
@@ -72,11 +105,15 @@ router.post('/:id/roles', async (req, res) => {
 });
 
 // ── DELETE /api/mentee/:id/roles/:roleId ──────────────────────────────────────
-router.delete('/:id/roles/:roleId', async (req, res) => {
+router.delete('/:id/roles/:roleId', requireMenteeOrMentor, async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+    if (!isMenteeAuthorized(req.params.id, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     mentee.roles = mentee.roles.filter(r => r.id !== req.params.roleId);
@@ -92,6 +129,7 @@ router.delete('/:id/roles/:roleId', async (req, res) => {
 // ── POST /api/mentee/:id/verify-pin ─────────────────────────────────────────
 router.post('/:id/verify-pin', async (req, res) => {
   try {
+    await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
@@ -101,6 +139,9 @@ router.post('/:id/verify-pin', async (req, res) => {
       return res.status(400).json({ error: 'PIN is required' });
     }
     const verified = mentee.pin === String(pin);
+    if (verified) {
+      req.session.verifiedMenteeId = mentee.id;
+    }
     res.json({ verified });
   } catch (err) {
     console.error('Error verifying PIN:', err);
@@ -109,11 +150,14 @@ router.post('/:id/verify-pin', async (req, res) => {
 });
 
 // ── POST /:id/target-roles — delete a target role ─────────────────────────────
-router.delete('/:id/target-roles/:roleId', async (req, res) => {
+router.delete('/:id/target-roles/:roleId', requireMenteeOrMentor, async (req, res) => {
   try {
     await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) return res.status(404).json({ error: 'Mentee not found' });
+    if (!isMenteeAuthorized(req.params.id, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     mentee.targetRoles = (mentee.targetRoles || []).filter(r => r.id !== req.params.roleId);
     mentee.updatedAt = new Date();
@@ -129,7 +173,7 @@ router.delete('/:id/target-roles/:roleId', async (req, res) => {
 
 
 // ── PATCH /api/mentee/:id/mentor-notes ───────────────────────────────────────
-router.patch('/:id/mentor-notes', async (req, res) => {
+router.patch('/:id/mentor-notes', requireMentor, async (req, res) => {
   try {
     await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });

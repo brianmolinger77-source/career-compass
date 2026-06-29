@@ -326,10 +326,8 @@ router.put('/mentee/:id/pin', requireMentor, async (req, res) => {
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
     }
-    const isSuperuser = req.session.role === 'superuser';
-    const isAssigned = String(mentee.mentorId) === String(req.session.mentorId);
-    if (!isSuperuser && !isAssigned) {
-      return res.status(403).json({ error: 'Not authorized' });
+    if (!canAccessMentee(mentee, req.session)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
     mentee.pin = String(pin);
     mentee.updatedAt = new Date();
