@@ -45,7 +45,7 @@ router.post('/analyze-role', async (req, res) => {
 
 Your job is to identify three types of issues and provide specific, actionable feedback:
 
-1. JARGON & MILITARY LANGUAGE: Flag any military-specific terms, acronyms, rank structures, unit designations, or insider language that a civilian hiring manager would not understand. For each item flagged, explain in plain English why it is opaque to civilians and what concept it represents.
+1. JARGON & INSIDER LANGUAGE: Flag any terminology that a generalist civilian hiring manager -- someone outside this person's specific field, with no specialized knowledge of it -- would not understand. This includes military-specific terms, acronyms, rank structures, and unit designations, but is not limited to them. It also includes industry-specific technical jargon, tool or platform names, internal company terminology, and dense field-specific abbreviations, whenever the entry contains them. Judge each term by whether an outside hiring manager would recognize it, not by whether it originated in the military. For each item flagged, explain in plain English why it is opaque to that outside audience and what concept it represents.
 
 2. MISSING "HOW": If the entry focuses only on what they did (tasks and duties) without explaining how they approached the work — how they prioritized, managed relationships, led people, or solved problems — flag this gap. Give 2-3 specific prompting questions to help them add this dimension.
 
