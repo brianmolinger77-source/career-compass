@@ -10,6 +10,7 @@ const anthropic = new Anthropic({
 const MODEL = 'claude-sonnet-4-6';
 
 const ApiUsageLog = require('../models/ApiUsageLog');
+const { logError } = require('../utils/errorLog');
 
 async function logUsage(endpoint, menteeId, mentorId, usage) {
   try {
@@ -136,6 +137,7 @@ Provide specific, actionable feedback to help translate this into compelling civ
     res.json({ feedback, mentee });
   } catch (err) {
     console.error('Error analyzing role:', err);
+    await logError('POST /api/analyze-role', 'POST', err, menteeId);
     res.status(500).json({
       error: 'Analysis unavailable right now — try again in a moment. Your content has been saved.'
     });
@@ -266,6 +268,7 @@ Please write their civilian career narrative and provide themes and feedback.`;
     });
   } catch (err) {
     console.error('Error generating narrative:', err);
+    await logError('POST /api/generate-narrative', 'POST', err, menteeId);
     res.status(500).json({
       error: 'Narrative generation unavailable right now — try again in a moment.'
     });
@@ -355,6 +358,7 @@ ${mentee.aspirations || '(not provided)'}`;
     res.json({ analysis: mentee.psaAnalysis, mentee });
   } catch (err) {
     console.error('Error analyzing PSA:', err);
+    await logError('POST /api/analyze-psa', 'POST', err, menteeId);
     res.status(500).json({
       error: 'Analysis unavailable right now — try again in a moment.'
     });
@@ -491,6 +495,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
     res.json({ roleBullets: result.bullets, resumeSummary: result.summary || '', resumeGeneratedAt: now, mentee });
   } catch (err) {
     console.error('Error generating resume bullets:', err);
+    await logError('POST /api/generate-resume-bullets', 'POST', err, menteeId);
     res.status(500).json({
       error: 'Resume bullet generation unavailable right now — try again in a moment.'
     });
@@ -582,6 +587,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
     res.json({ resumeSummary: result.summary || '', mentee });
   } catch (err) {
     console.error('Error regenerating summary:', err);
+    await logError('POST /api/regenerate-summary', 'POST', err, menteeId);
     res.status(500).json({
       error: 'Summary generation unavailable right now — try again in a moment.'
     });
@@ -738,6 +744,7 @@ ${jobPostingText}`;
 
   } catch (err) {
     console.error('Error evaluating job posting:', err);
+    await logError('POST /api/evaluate-job-posting', 'POST', err, menteeId);
     res.status(500).json({
       error: 'Analysis unavailable right now — try again in a moment.'
     });
@@ -905,6 +912,7 @@ Job title: ${jobTitle}${companyOrIndustry ? `\nCompany or industry: ${companyOrI
     });
   } catch (err) {
     console.error('Error analyzing target role:', err);
+    await logError('POST /api/analyze-target-role', 'POST', err, menteeId);
     res.status(500).json({
       error: 'Analysis unavailable right now — try again in a moment.'
     });
@@ -965,6 +973,7 @@ ${rolesText}`;
     res.json({ pattern, mentee });
   } catch (err) {
     console.error('Error generating target role pattern:', err);
+    await logError('POST /api/generate-target-role-pattern', 'POST', err, menteeId);
     res.status(500).json({
       error: 'Pattern generation unavailable right now — try again in a moment.'
     });
@@ -1086,6 +1095,7 @@ ${funnelSnapshot}`;
     res.json({ agenda, mentee });
   } catch (err) {
     console.error('Error generating session prep:', err);
+    await logError('POST /api/generate-session-prep', 'POST', err, menteeId);
     res.status(500).json({
       error: 'Session prep unavailable right now — try again in a moment.'
     });

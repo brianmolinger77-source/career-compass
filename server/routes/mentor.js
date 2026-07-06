@@ -6,6 +6,7 @@ const Mentee = require('../models/Mentee');
 const Mentor = require('../models/Mentor');
 const mongoose = require('mongoose');
 const ApiUsageLog = require('../models/ApiUsageLog');
+const { logError } = require('../utils/errorLog');
 
 function nameToSlug(name) {
   return name
@@ -79,6 +80,7 @@ router.post('/login', async (req, res) => {
     res.json({ success: true, role: mentor.role });
   } catch (err) {
     console.error('Login error:', err);
+    await logError('POST /api/mentor/login', 'POST', err);
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -135,6 +137,7 @@ router.get('/mentees', requireMentor, async (req, res) => {
     res.json(mentees);
   } catch (err) {
     console.error('Error listing mentees — full error:', err.message, err.stack);
+    await logError('GET /api/mentor/mentees', 'GET', err);
     res.status(500).json({ error: 'Failed to list mentees', detail: err.message });
   }
 });
@@ -201,6 +204,7 @@ router.post('/mentees', requireMentor, async (req, res) => {
     });
   } catch (err) {
     console.error('Error creating mentee:', err);
+    await logError('POST /api/mentor/mentees', 'POST', err);
     res.status(500).json({ error: 'Failed to create mentee' });
   }
 });
@@ -220,6 +224,7 @@ router.get('/mentee/:id', requireMentor, async (req, res) => {
     res.json(mentee);
   } catch (err) {
     console.error('Error reading mentee:', err);
+    await logError('GET /api/mentor/mentee/:id', 'GET', err, req.params.id);
     res.status(500).json({ error: 'Failed to read mentee' });
   }
 });
@@ -255,6 +260,7 @@ router.post('/mentee/:id/comments', requireMentor, async (req, res) => {
     res.json(mentee);
   } catch (err) {
     console.error('Error adding comment:', err);
+    await logError('POST /api/mentor/mentee/:id/comments', 'POST', err, req.params.id);
     res.status(500).json({ error: 'Failed to add comment' });
   }
 });
@@ -284,6 +290,7 @@ router.put('/mentee/:id/comments/:commentId', requireMentor, async (req, res) =>
     res.json(mentee);
   } catch (err) {
     console.error('Error updating comment:', err);
+    await logError('PUT /api/mentor/mentee/:id/comments/:commentId', 'PUT', err, req.params.id);
     res.status(500).json({ error: 'Failed to update comment' });
   }
 });
@@ -309,6 +316,7 @@ router.delete('/mentee/:id/comments/:commentId', requireMentor, async (req, res)
     res.json(mentee);
   } catch (err) {
     console.error('Error deleting comment:', err);
+    await logError('DELETE /api/mentor/mentee/:id/comments/:commentId', 'DELETE', err, req.params.id);
     res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
@@ -335,6 +343,7 @@ router.put('/mentee/:id/pin', requireMentor, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating PIN:', err);
+    await logError('PUT /api/mentor/mentee/:id/pin', 'PUT', err, req.params.id);
     res.status(500).json({ error: 'Failed to update PIN' });
   }
 });
@@ -366,6 +375,7 @@ router.put('/mentee/:id/assign', requireMentor, requireSuperuser, async (req, re
     res.json(mentee);
   } catch (err) {
     console.error('Error assigning mentee:', err);
+    await logError('PUT /api/mentor/mentee/:id/assign', 'PUT', err, req.params.id);
     res.status(500).json({ error: 'Failed to assign mentee' });
   }
 });
@@ -379,6 +389,7 @@ router.get('/mentors', requireMentor, requireSuperuser, async (req, res) => {
     res.json(mentors);
   } catch (err) {
     console.error('Error listing mentors:', err);
+    await logError('GET /api/mentor/mentors', 'GET', err);
     res.status(500).json({ error: 'Failed to list mentors' });
   }
 });
@@ -434,6 +445,7 @@ router.post('/mentors', requireMentor, requireSuperuser, async (req, res) => {
     res.json(mentor);
   } catch (err) {
     console.error('Error creating mentor:', err);
+    await logError('POST /api/mentor/mentors', 'POST', err);
     res.status(500).json({ error: 'Failed to create mentor' });
   }
 });
@@ -453,6 +465,7 @@ router.put('/mentors/:id/deactivate', requireMentor, requireSuperuser, async (re
     res.json(mentor);
   } catch (err) {
     console.error('Error deactivating mentor:', err);
+    await logError('PUT /api/mentor/mentors/:id/deactivate', 'PUT', err);
     res.status(500).json({ error: 'Failed to deactivate mentor' });
   }
 });
@@ -472,6 +485,7 @@ router.put('/mentors/:id/activate', requireMentor, requireSuperuser, async (req,
     res.json(mentor);
   } catch (err) {
     console.error('Error activating mentor:', err);
+    await logError('PUT /api/mentor/mentors/:id/activate', 'PUT', err);
     res.status(500).json({ error: 'Failed to activate mentor' });
   }
 });
@@ -513,6 +527,7 @@ router.get('/usage', requireMentor, requireSuperuser, async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching usage data:', err);
+    await logError('GET /api/mentor/usage', 'GET', err);
     res.status(500).json({ error: 'Failed to fetch usage data' });
   }
 });

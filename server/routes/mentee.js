@@ -3,6 +3,7 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const Mentee = require('../models/Mentee');
+const { logError } = require('../utils/errorLog');
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 function requireMentor(req, res, next) {
@@ -39,6 +40,7 @@ router.get('/:id', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('Error reading mentee:', err);
+    await logError('GET /api/mentee/:id', 'GET', err, req.params.id);
     res.status(500).json({ error: 'Failed to read mentee data' });
   }
 });
@@ -67,6 +69,7 @@ router.put('/:id', requireMenteeOrMentor, async (req, res) => {
     res.json(mentee);
   } catch (err) {
     console.error('Error updating mentee:', err);
+    await logError('PUT /api/mentee/:id', 'PUT', err, req.params.id);
     res.status(500).json({ error: 'Failed to update mentee data' });
   }
 });
@@ -100,6 +103,7 @@ router.post('/:id/roles', requireMenteeOrMentor, async (req, res) => {
     res.json(mentee);
   } catch (err) {
     console.error('Error adding role:', err);
+    await logError('POST /api/mentee/:id/roles', 'POST', err, req.params.id);
     res.status(500).json({ error: 'Failed to add role' });
   }
 });
@@ -122,6 +126,7 @@ router.delete('/:id/roles/:roleId', requireMenteeOrMentor, async (req, res) => {
     res.json(mentee);
   } catch (err) {
     console.error('Error deleting role:', err);
+    await logError('DELETE /api/mentee/:id/roles/:roleId', 'DELETE', err, req.params.id);
     res.status(500).json({ error: 'Failed to delete role' });
   }
 });
@@ -145,6 +150,7 @@ router.post('/:id/verify-pin', async (req, res) => {
     res.json({ verified });
   } catch (err) {
     console.error('Error verifying PIN:', err);
+    await logError('POST /api/mentee/:id/verify-pin', 'POST', err, req.params.id);
     res.status(500).json({ error: 'Failed to verify PIN' });
   }
 });
@@ -167,6 +173,7 @@ router.delete('/:id/target-roles/:roleId', requireMenteeOrMentor, async (req, re
     res.json(mentee);
   } catch (err) {
     console.error('Error deleting target role:', err);
+    await logError('DELETE /api/mentee/:id/target-roles/:roleId', 'DELETE', err, req.params.id);
     res.status(500).json({ error: 'Failed to delete target role' });
   }
 });
@@ -186,6 +193,7 @@ router.patch('/:id/mentor-notes', requireMentor, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Error saving mentor notes:', err);
+    await logError('PATCH /api/mentee/:id/mentor-notes', 'PATCH', err, req.params.id);
     res.status(500).json({ error: 'Failed to save mentor notes' });
   }
 });
