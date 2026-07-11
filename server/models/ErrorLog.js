@@ -6,6 +6,7 @@ const errorLogSchema = new mongoose.Schema({
   errorMessage: { type: String, required: true },
   stackExcerpt: { type: String, default: '' },
   menteeId:     { type: String, default: '' },
+  severity:     { type: String, enum: ['critical', 'error'], default: 'error' },
   createdAt:    { type: Date, default: Date.now }
 }, { timestamps: false });
 

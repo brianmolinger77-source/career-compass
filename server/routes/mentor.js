@@ -6,6 +6,7 @@ const Mentee = require('../models/Mentee');
 const Mentor = require('../models/Mentor');
 const mongoose = require('mongoose');
 const ApiUsageLog = require('../models/ApiUsageLog');
+const ErrorLog = require('../models/ErrorLog');
 const { logError } = require('../utils/errorLog');
 
 function nameToSlug(name) {
@@ -80,7 +81,7 @@ router.post('/login', async (req, res) => {
     res.json({ success: true, role: mentor.role });
   } catch (err) {
     console.error('Login error:', err);
-    await logError('POST /api/mentor/login', 'POST', err);
+    await logError('POST /api/mentor/login', 'POST', err, null, 'critical');
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -137,7 +138,7 @@ router.get('/mentees', requireMentor, async (req, res) => {
     res.json(mentees);
   } catch (err) {
     console.error('Error listing mentees — full error:', err.message, err.stack);
-    await logError('GET /api/mentor/mentees', 'GET', err);
+    await logError('GET /api/mentor/mentees', 'GET', err, null, 'critical');
     res.status(500).json({ error: 'Failed to list mentees', detail: err.message });
   }
 });
@@ -343,7 +344,7 @@ router.put('/mentee/:id/pin', requireMentor, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Error updating PIN:', err);
-    await logError('PUT /api/mentor/mentee/:id/pin', 'PUT', err, req.params.id);
+    await logError('PUT /api/mentor/mentee/:id/pin', 'PUT', err, req.params.id, 'critical');
     res.status(500).json({ error: 'Failed to update PIN' });
   }
 });
@@ -529,6 +530,72 @@ router.get('/usage', requireMentor, requireSuperuser, async (req, res) => {
     console.error('Error fetching usage data:', err);
     await logError('GET /api/mentor/usage', 'GET', err);
     res.status(500).json({ error: 'Failed to fetch usage data' });
+  }
+});
+
+// ── GET /api/mentor/errors — superuser only ──────────────────────────────────
+
+router.get('/errors', requireMentor, requireSuperuser, async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+
+    let limit = parseInt(req.query.limit, 10);
+    if (!Number.isFinite(limit) || limit <= 0) limit = 50;
+    limit = Math.min(limit, 200);
+
+    const routeFilter = req.query.route ? { route: req.query.route } : {};
+    const queryFilter = { ...routeFilter };
+    if (req.query.severity) queryFilter.severity = req.query.severity;
+
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [total, lastHour, last24h, critical, errors, criticalGroupsRaw] = await Promise.all([
+      ErrorLog.countDocuments(queryFilter),
+      ErrorLog.countDocuments({ ...queryFilter, createdAt: { $gte: oneHourAgo } }),
+      ErrorLog.countDocuments({ ...queryFilter, createdAt: { $gte: oneDayAgo } }),
+      ErrorLog.countDocuments({ ...routeFilter, severity: 'critical' }),
+      ErrorLog.find(queryFilter).sort({ createdAt: -1 }).limit(limit).lean(),
+      ErrorLog.aggregate([
+        { $match: { ...routeFilter, severity: 'critical' } },
+        {
+          $group: {
+            _id: { route: '$route', errorMessage: '$errorMessage' },
+            count: { $sum: 1 },
+            distinctMentees: { $addToSet: '$menteeId' },
+            firstAt: { $min: '$createdAt' },
+            mostRecentAt: { $max: '$createdAt' }
+          }
+        },
+        { $sort: { mostRecentAt: -1 } }
+      ])
+    ]);
+
+    res.json({
+      summary: { total, lastHour, last24h, critical },
+      criticalGroups: criticalGroupsRaw.map(g => ({
+        route: g._id.route,
+        errorMessage: g._id.errorMessage,
+        count: g.count,
+        distinctMenteeCount: g.distinctMentees.filter(Boolean).length,
+        firstAt: g.firstAt,
+        mostRecentAt: g.mostRecentAt
+      })),
+      errors: errors.map(e => ({
+        route: e.route,
+        method: e.method,
+        errorMessage: e.errorMessage,
+        stackExcerpt: e.stackExcerpt,
+        menteeId: e.menteeId,
+        severity: e.severity,
+        createdAt: e.createdAt
+      }))
+    });
+  } catch (err) {
+    console.error('Error fetching error logs:', err);
+    await logError('GET /api/mentor/errors', 'GET', err);
+    res.status(500).json({ error: 'Failed to fetch error logs' });
   }
 });
 

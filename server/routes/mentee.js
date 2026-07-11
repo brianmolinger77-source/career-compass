@@ -40,7 +40,7 @@ router.get('/:id', async (req, res) => {
     res.json(data);
   } catch (err) {
     console.error('Error reading mentee:', err);
-    await logError('GET /api/mentee/:id', 'GET', err, req.params.id);
+    await logError('GET /api/mentee/:id', 'GET', err, req.params.id, 'critical');
     res.status(500).json({ error: 'Failed to read mentee data' });
   }
 });
@@ -150,7 +150,7 @@ router.post('/:id/verify-pin', async (req, res) => {
     res.json({ verified });
   } catch (err) {
     console.error('Error verifying PIN:', err);
-    await logError('POST /api/mentee/:id/verify-pin', 'POST', err, req.params.id);
+    await logError('POST /api/mentee/:id/verify-pin', 'POST', err, req.params.id, 'critical');
     res.status(500).json({ error: 'Failed to verify PIN' });
   }
 });
