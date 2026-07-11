@@ -104,44 +104,51 @@ export default function MentorMenteeView() {
     }
   }
 
+  // Deliberately no try/catch here — on failure this rejects and propagates to the
+  // caller (RoleCard), which owns per-field retry/error UI for role fields. We still
+  // pulse the shared header optimistically on the way in/out, but we never call
+  // setSaveError() for this path, so a failing field's error can't later be silently
+  // erased by an unrelated successful save elsewhere on the page.
   async function handleRoleUpdate(roleId, patch) {
     setSaving()
-    try {
-      const currentMentee = await getMentee(id)
-      const updatedRoles = (currentMentee.roles || []).map(r =>
-        r.id === roleId ? { ...r, ...patch } : r
-      )
-      const updated = await updateMentee(id, { roles: updatedRoles })
-      setMentee(updated)
-      setSaved()
-    } catch (err) {
-      setSaveError()
-    }
+    const currentMentee = await getMentee(id)
+    const updatedRoles = (currentMentee.roles || []).map(r =>
+      r.id === roleId ? { ...r, ...patch } : r
+    )
+    const updated = await updateMentee(id, { roles: updatedRoles })
+    setMentee(updated)
+    setSaved()
+    return updated
   }
 
   async function handleAddRole() {
+    setSaving()
     try {
       const updated = await addRole(id)
       setMentee(updated)
+      setSaved()
     } catch (err) {
       console.error('Failed to add role:', err)
+      setSaveError()
     }
   }
 
   // Fire-and-forget flush for real page teardown (tab close/background), where we
   // can't wait for a normal request to complete. Merges the patch into the last-known
   // roles array and sends a single keepalive PUT instead of the usual GET-then-PUT.
+  // Returns the promise (rather than swallowing errors) so RoleCard can fall back to
+  // its normal per-field retry path if the keepalive request itself fails.
   function handleRoleEmergencyFlush(roleId, patch) {
     const updatedRoles = (mentee.roles || []).map(r =>
       r.id === roleId ? { ...r, ...patch } : r
     )
     setSaving()
-    updateMentee(id, { roles: updatedRoles }, { keepalive: true })
+    return updateMentee(id, { roles: updatedRoles }, { keepalive: true })
       .then(updated => {
         setMentee(updated)
         setSaved()
+        return updated
       })
-      .catch(() => setSaveError())
   }
 
   async function handleDeleteRole(roleId) {

@@ -28,6 +28,37 @@ function evaluateHowIDidIt(text) {
   return HOW_I_DID_IT_JUDGMENT.test(text) && wordCount >= 30
 }
 
+const RETRY_DELAYS_MS = [1000, 2000, 4000]
+
+// Per-field save status shown next to a single input/textarea. Deliberately quiet on
+// the happy path (the shared header already pulses "Saving.../Saved" for that) — this
+// only speaks up once a save is actually in trouble, and never claims to be "retrying"
+// once it has genuinely stopped.
+function FieldSaveStatus({ state, onRetry }) {
+  if (!state) return null
+  if (state.status === 'retrying') {
+    const label = state.manual
+      ? 'Retrying…'
+      : `Save failed — retrying (${state.attempt - 1} of ${RETRY_DELAYS_MS.length})…`
+    return <p className="text-xs text-amber-600 mt-1">{label}</p>
+  }
+  if (state.status === 'error') {
+    return (
+      <p className="text-xs text-red-600 mt-1 flex items-center gap-2">
+        <span>Save failed. Your last change here wasn't saved.</span>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="underline font-medium hover:text-red-700 flex-shrink-0"
+        >
+          Retry
+        </button>
+      </p>
+    )
+  }
+  return null
+}
+
 const FIELD_DEFINITIONS = {
   whatIDid: {
     label: 'What I Did',
@@ -82,53 +113,138 @@ export default function RoleCard({
     if (!howIDidIt.trim()) return 'unstarted'
     return evaluateHowIDidIt(howIDidIt) ? 'complete' : 'in-progress'
   })
-  // Pending debounced saves, keyed by field: { [field]: { timerId, patch } }.
-  // Tracking the patch alongside the timer (not just the timer id) is what lets us
-  // flush the real, un-sent edit immediately instead of just cancelling it.
-  const pendingSaves = useRef({})
+  // Per-field save bookkeeping, keyed by field: { [field]: { patch, debounceTimerId, retryTimerId } }.
+  // An entry exists here for as long as a field's latest edit is NOT yet confirmed saved —
+  // whether it's still waiting out the debounce, actively in flight, or waiting between
+  // retries. That's what lets both flush paths below find and send un-saved data at any
+  // point in a save's lifecycle, not just during the initial debounce window.
+  const fieldState = useRef({})
+  // Per-field UI status, shown only once a save is in trouble (retrying or failed) — the
+  // shared header already handles the "Saving.../Saved" happy path, so this stays quiet
+  // otherwise. Tracking failures here instead of on the shared header is what stops one
+  // field's failure from being erased by a different field's unrelated success.
+  const [fieldStatuses, setFieldStatuses] = useState({})
   const latestOnUpdate = useRef(onUpdate)
   const latestOnEmergencyFlush = useRef(onEmergencyFlush)
+  const isMountedRef = useRef(true)
   useEffect(() => {
     latestOnUpdate.current = onUpdate
     latestOnEmergencyFlush.current = onEmergencyFlush
   })
+  useEffect(() => {
+    // Reset to true on (re-)mount, not just on the initial useRef(true) — React
+    // StrictMode double-invokes this effect in dev (mount, cleanup, mount again) to
+    // surface exactly this kind of bug, and without resetting here the ref would be
+    // stuck false after that dance even though the component is genuinely still alive.
+    isMountedRef.current = true
+    return () => { isMountedRef.current = false }
+  }, [])
 
-  // Clears every pending timer and returns the merged patch across all fields
-  // (or null if nothing was pending). Used by both flush paths below.
-  function collectAndClearPending() {
-    const fields = Object.keys(pendingSaves.current)
-    if (fields.length === 0) return null
-    const mergedPatch = {}
-    for (const field of fields) {
-      clearTimeout(pendingSaves.current[field].timerId)
-      Object.assign(mergedPatch, pendingSaves.current[field].patch)
-      delete pendingSaves.current[field]
-    }
-    return mergedPatch
+  function clearFieldStatus(field) {
+    setFieldStatuses(prev => {
+      if (!(field in prev)) return prev
+      const next = { ...prev }
+      delete next[field]
+      return next
+    })
   }
 
-  // In-app unmount (switching tabs, switching mentees, removing this role): the app
-  // is still alive, so flush through the normal save path and let it complete.
+  // Attempts to save a single field's pending patch, retrying up to RETRY_DELAYS_MS.length
+  // times with increasing delay on failure. `attempt` is 1 for the first, automatic try;
+  // isManual marks a save re-triggered from the "Retry" button after all attempts failed.
+  function attemptSave(field, attempt, isManual = false) {
+    const entry = fieldState.current[field]
+    if (!entry) return
+
+    if (attempt > 1 || isManual) {
+      setFieldStatuses(prev => ({ ...prev, [field]: { status: 'retrying', attempt, manual: isManual && attempt === 1 } }))
+    } else {
+      clearFieldStatus(field)
+    }
+
+    latestOnUpdate.current(role.id, entry.patch)
+      .then(() => {
+        if (!isMountedRef.current) return
+        const current = fieldState.current[field]
+        // Only clear if this attempt's patch is still the latest — a newer edit may have
+        // superseded it while this request was in flight.
+        if (current && current.patch === entry.patch) {
+          delete fieldState.current[field]
+          clearFieldStatus(field)
+        }
+      })
+      .catch(() => {
+        if (!isMountedRef.current) return
+        const current = fieldState.current[field]
+        // Bail if superseded by a newer edit, or already handed off to the close-flush path.
+        if (!current || current.patch !== entry.patch) return
+
+        if (attempt > RETRY_DELAYS_MS.length) {
+          setFieldStatuses(prev => ({ ...prev, [field]: { status: 'error', attempt } }))
+          return
+        }
+        const delay = RETRY_DELAYS_MS[attempt - 1]
+        setFieldStatuses(prev => ({ ...prev, [field]: { status: 'retrying', attempt: attempt + 1 } }))
+        current.retryTimerId = setTimeout(() => attemptSave(field, attempt + 1), delay)
+      })
+  }
+
+  function handleManualRetry(field) {
+    const entry = fieldState.current[field]
+    if (!entry) return
+    if (entry.retryTimerId) clearTimeout(entry.retryTimerId)
+    attemptSave(field, 1, true)
+  }
+
+  // In-app unmount (switching tabs, switching mentees, removing this role): the app is
+  // still alive, so fire one normal-path save per pending field and let it complete —
+  // no retry loop here, since there would be nowhere left to show it if it failed again.
   useEffect(() => {
     return () => {
-      const mergedPatch = collectAndClearPending()
-      if (mergedPatch) {
-        latestOnUpdate.current(role.id, mergedPatch)
+      const fields = Object.keys(fieldState.current)
+      if (fields.length === 0) return
+      const mergedPatch = {}
+      for (const field of fields) {
+        const entry = fieldState.current[field]
+        clearTimeout(entry.debounceTimerId)
+        clearTimeout(entry.retryTimerId)
+        Object.assign(mergedPatch, entry.patch)
+        delete fieldState.current[field]
       }
+      latestOnUpdate.current(role.id, mergedPatch)
+        .catch(err => console.error('Failed to flush pending role edit on navigation:', err))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role.id])
 
-  // Real page teardown (tab closed, backgrounded, reloaded): the app may not survive
-  // long enough for a normal fetch to complete, so flush with a keepalive request instead.
+  // Real page teardown (tab closed, backgrounded, reloaded): the app may not survive long
+  // enough for a normal fetch to complete, so flush with a keepalive request instead.
   // pagehide/visibilitychange are used instead of beforeunload because mobile browsers are
   // inconsistent about firing beforeunload when a tab is backgrounded rather than closed.
   useEffect(() => {
     function flushForClose() {
-      const mergedPatch = collectAndClearPending()
-      if (mergedPatch) {
-        latestOnEmergencyFlush.current(role.id, mergedPatch)
+      const fields = Object.keys(fieldState.current)
+      if (fields.length === 0) return
+      const patchesByField = {}
+      const mergedPatch = {}
+      for (const field of fields) {
+        const entry = fieldState.current[field]
+        clearTimeout(entry.debounceTimerId)
+        clearTimeout(entry.retryTimerId)
+        patchesByField[field] = entry.patch
+        Object.assign(mergedPatch, entry.patch)
+        delete fieldState.current[field]
       }
+      latestOnEmergencyFlush.current(role.id, mergedPatch)
+        .catch(() => {
+          // The keepalive flush itself failed — if we're still here to see that, the page
+          // survived after all, so don't lose the edit: fall back into the normal
+          // per-field retry path instead of just giving up silently.
+          for (const field of fields) {
+            fieldState.current[field] = { patch: patchesByField[field], debounceTimerId: null, retryTimerId: null }
+            attemptSave(field, 1)
+          }
+        })
     }
     function handleVisibilityChange() {
       if (document.visibilityState === 'hidden') {
@@ -165,13 +281,21 @@ export default function RoleCard({
       setHowIDidItQualityState(prev => (prev === 'unstarted' || prev === 'complete') ? 'in-progress' : prev)
     }
 
-    // Debounce autosave
-    if (pendingSaves.current[field]) clearTimeout(pendingSaves.current[field].timerId)
-    const timerId = setTimeout(() => {
-      delete pendingSaves.current[field]
-      onUpdate(role.id, patch)
+    // A fresh edit clears any stale retry/error indicator for this field. An older in-flight
+    // attempt may still resolve, but attemptSave's patch-identity check discards it once
+    // superseded, so it can't stomp this newer edit's own status.
+    clearFieldStatus(field)
+
+    const existing = fieldState.current[field]
+    if (existing) {
+      clearTimeout(existing.debounceTimerId)
+      clearTimeout(existing.retryTimerId)
+    }
+    const debounceTimerId = setTimeout(() => {
+      fieldState.current[field].debounceTimerId = null
+      attemptSave(field, 1)
     }, 1500)
-    pendingSaves.current[field] = { timerId, patch }
+    fieldState.current[field] = { patch, debounceTimerId, retryTimerId: null }
   }
 
   function handleImpactBlur(value) {
@@ -281,6 +405,7 @@ export default function RoleCard({
               placeholder="e.g. Operations Manager"
               className="w-full text-base font-medium border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent"
             />
+            <FieldSaveStatus state={fieldStatuses.title} onRetry={() => handleManualRetry('title')} />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
@@ -293,6 +418,7 @@ export default function RoleCard({
               placeholder="e.g. U.S. Army / Company name"
               className="w-full text-base border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent"
             />
+            <FieldSaveStatus state={fieldStatuses.organization} onRetry={() => handleManualRetry('organization')} />
           </div>
         </div>
 
@@ -332,6 +458,7 @@ export default function RoleCard({
             placeholder="2010"
             className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
           />
+          <FieldSaveStatus state={fieldStatuses.startYear} onRetry={() => handleManualRetry('startYear')} />
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
@@ -344,6 +471,7 @@ export default function RoleCard({
             placeholder="2015 or Present"
             className="w-32 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
           />
+          <FieldSaveStatus state={fieldStatuses.endYear} onRetry={() => handleManualRetry('endYear')} />
         </div>
       </div>
 
@@ -439,6 +567,7 @@ export default function RoleCard({
               rows={4}
               className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
             />
+            <FieldSaveStatus state={fieldStatuses[field]} onRetry={() => handleManualRetry(field)} />
           </div>
         )
       })}
