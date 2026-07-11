@@ -22,10 +22,11 @@ export function getMentee(id) {
   return request(`/api/mentee/${id}`)
 }
 
-export function updateMentee(id, data) {
+export function updateMentee(id, data, options = {}) {
   return request(`/api/mentee/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(data)
+    body: JSON.stringify(data),
+    ...options
   })
 }
 

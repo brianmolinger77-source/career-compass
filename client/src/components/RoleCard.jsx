@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import AIFeedbackPanel from './AIFeedbackPanel'
 import MentorComment from './MentorComment'
 import { analyzeRole } from '../utils/api'
@@ -50,6 +50,7 @@ export default function RoleCard({
   role,
   menteeId,
   onUpdate,
+  onEmergencyFlush,
   onDelete,
   onMoveUp,
   onMoveDown,
@@ -81,7 +82,67 @@ export default function RoleCard({
     if (!howIDidIt.trim()) return 'unstarted'
     return evaluateHowIDidIt(howIDidIt) ? 'complete' : 'in-progress'
   })
-  const debounceTimers = useRef({})
+  // Pending debounced saves, keyed by field: { [field]: { timerId, patch } }.
+  // Tracking the patch alongside the timer (not just the timer id) is what lets us
+  // flush the real, un-sent edit immediately instead of just cancelling it.
+  const pendingSaves = useRef({})
+  const latestOnUpdate = useRef(onUpdate)
+  const latestOnEmergencyFlush = useRef(onEmergencyFlush)
+  useEffect(() => {
+    latestOnUpdate.current = onUpdate
+    latestOnEmergencyFlush.current = onEmergencyFlush
+  })
+
+  // Clears every pending timer and returns the merged patch across all fields
+  // (or null if nothing was pending). Used by both flush paths below.
+  function collectAndClearPending() {
+    const fields = Object.keys(pendingSaves.current)
+    if (fields.length === 0) return null
+    const mergedPatch = {}
+    for (const field of fields) {
+      clearTimeout(pendingSaves.current[field].timerId)
+      Object.assign(mergedPatch, pendingSaves.current[field].patch)
+      delete pendingSaves.current[field]
+    }
+    return mergedPatch
+  }
+
+  // In-app unmount (switching tabs, switching mentees, removing this role): the app
+  // is still alive, so flush through the normal save path and let it complete.
+  useEffect(() => {
+    return () => {
+      const mergedPatch = collectAndClearPending()
+      if (mergedPatch) {
+        latestOnUpdate.current(role.id, mergedPatch)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role.id])
+
+  // Real page teardown (tab closed, backgrounded, reloaded): the app may not survive
+  // long enough for a normal fetch to complete, so flush with a keepalive request instead.
+  // pagehide/visibilitychange are used instead of beforeunload because mobile browsers are
+  // inconsistent about firing beforeunload when a tab is backgrounded rather than closed.
+  useEffect(() => {
+    function flushForClose() {
+      const mergedPatch = collectAndClearPending()
+      if (mergedPatch) {
+        latestOnEmergencyFlush.current(role.id, mergedPatch)
+      }
+    }
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        flushForClose()
+      }
+    }
+    window.addEventListener('pagehide', flushForClose)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('pagehide', flushForClose)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role.id])
 
   function handleFieldChange(field, value) {
     // If there's existing feedback and the user is editing, mark revisions as pending
@@ -105,10 +166,12 @@ export default function RoleCard({
     }
 
     // Debounce autosave
-    if (debounceTimers.current[field]) clearTimeout(debounceTimers.current[field])
-    debounceTimers.current[field] = setTimeout(() => {
+    if (pendingSaves.current[field]) clearTimeout(pendingSaves.current[field].timerId)
+    const timerId = setTimeout(() => {
+      delete pendingSaves.current[field]
       onUpdate(role.id, patch)
     }, 1500)
+    pendingSaves.current[field] = { timerId, patch }
   }
 
   function handleImpactBlur(value) {

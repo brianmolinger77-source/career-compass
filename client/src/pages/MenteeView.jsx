@@ -156,6 +156,22 @@ export default function MenteeView() {
     }
   }
 
+  // Fire-and-forget flush for real page teardown (tab close/background), where we
+  // can't wait for a normal request to complete. Merges the patch into the last-known
+  // roles array and sends a single keepalive PUT instead of the usual GET-then-PUT.
+  function handleRoleEmergencyFlush(roleId, patch) {
+    const updatedRoles = (mentee.roles || []).map(r =>
+      r.id === roleId ? { ...r, ...patch } : r
+    )
+    setSaving()
+    updateMentee(menteeId, { roles: updatedRoles }, { keepalive: true })
+      .then(updated => {
+        setMentee(updated)
+        setSaved()
+      })
+      .catch(() => setSaveError())
+  }
+
   async function handleDeleteRole(roleId) {
     try {
       const updated = await deleteRole(menteeId, roleId)
@@ -552,6 +568,7 @@ export default function MenteeView() {
                       role={role}
                       menteeId={menteeId}
                       onUpdate={handleRoleUpdate}
+                      onEmergencyFlush={handleRoleEmergencyFlush}
                       onDelete={handleDeleteRole}
                       onMoveUp={(id) => handleMoveRole(id, 'up')}
                       onMoveDown={(id) => handleMoveRole(id, 'down')}
