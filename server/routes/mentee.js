@@ -18,9 +18,12 @@ function requireMenteeOrMentor(req, res, next) {
   res.status(401).json({ error: 'Unauthorized' });
 }
 
-function isMenteeAuthorized(menteeId, req) {
-  if (req.session && req.session.isMentor === true) return true;
-  return req.session && req.session.verifiedMenteeId === menteeId;
+function isMenteeAuthorized(mentee, req) {
+  if (!req.session) return false;
+  if (req.session.isMentor === true) {
+    return req.session.role === 'superuser' || mentee.mentorId === req.session.mentorId;
+  }
+  return req.session.verifiedMenteeId === mentee.id;
 }
 
 
@@ -54,7 +57,7 @@ router.put('/:id', requireMenteeOrMentor, async (req, res) => {
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
     }
-    if (!isMenteeAuthorized(req.params.id, req)) {
+    if (!isMenteeAuthorized(mentee, req)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -83,7 +86,7 @@ router.post('/:id/roles', requireMenteeOrMentor, async (req, res) => {
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
     }
-    if (!isMenteeAuthorized(req.params.id, req)) {
+    if (!isMenteeAuthorized(mentee, req)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -117,7 +120,7 @@ router.delete('/:id/roles/:roleId', requireMenteeOrMentor, async (req, res) => {
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
     }
-    if (!isMenteeAuthorized(req.params.id, req)) {
+    if (!isMenteeAuthorized(mentee, req)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -162,7 +165,7 @@ router.delete('/:id/target-roles/:roleId', requireMenteeOrMentor, async (req, re
     await mongoose.connection.asPromise();
     const mentee = await Mentee.findOne({ id: req.params.id });
     if (!mentee) return res.status(404).json({ error: 'Mentee not found' });
-    if (!isMenteeAuthorized(req.params.id, req)) {
+    if (!isMenteeAuthorized(mentee, req)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
