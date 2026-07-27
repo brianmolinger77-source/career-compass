@@ -172,6 +172,7 @@ export default function MentorDashboard() {
     setPinError('')
     try {
       await updateMenteePin(menteeId, pinValue)
+      setMentees(prev => prev.map(m => m.id === menteeId ? { ...m, pin: pinValue } : m))
       setPinSuccess(menteeId)
       setPinEditing(null)
       setPinValue('')
