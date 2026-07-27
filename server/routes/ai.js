@@ -28,8 +28,22 @@ async function logUsage(endpoint, menteeId, mentorId, usage) {
   }
 }
 
+function requireMenteeOrMentor(req, res, next) {
+  if (req.session && req.session.isMentor === true) return next();
+  if (req.session && req.session.verifiedMenteeId) return next();
+  res.status(401).json({ error: 'Unauthorized' });
+}
+
+function isMenteeAuthorized(mentee, req) {
+  if (!req.session) return false;
+  if (req.session.isMentor === true) {
+    return req.session.role === 'superuser' || mentee.mentorId === req.session.mentorId;
+  }
+  return req.session.verifiedMenteeId === mentee.id;
+}
+
 // ── POST /api/analyze-role ────────────────────────────────────────────────────
-router.post('/analyze-role', async (req, res) => {
+router.post('/analyze-role', requireMenteeOrMentor, async (req, res) => {
   try {
     const { menteeId, roleId, whatIDid, howIDidIt, impact } = req.body;
 
@@ -40,6 +54,10 @@ router.post('/analyze-role', async (req, res) => {
     const mentee = await Mentee.findOne({ id: menteeId });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const systemPrompt = `You are an expert career coach helping military veterans translate their service experience into compelling civilian career language. You are reviewing a role entry from a veteran's career pathing document.
@@ -145,7 +163,7 @@ Provide specific, actionable feedback to help translate this into compelling civ
 });
 
 // ── POST /api/generate-narrative ─────────────────────────────────────────────
-router.post('/generate-narrative', async (req, res) => {
+router.post('/generate-narrative', requireMenteeOrMentor, async (req, res) => {
   try {
     const { menteeId, careerThread: careerThreadFromRequest } = req.body;
 
@@ -156,6 +174,10 @@ router.post('/generate-narrative', async (req, res) => {
     const mentee = await Mentee.findOne({ id: menteeId });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     // Use request-supplied careerThread if provided, otherwise use saved value
@@ -276,7 +298,7 @@ Please write their civilian career narrative and provide themes and feedback.`;
 });
 
 // ── POST /api/analyze-psa ─────────────────────────────────────────────────────
-router.post('/analyze-psa', async (req, res) => {
+router.post('/analyze-psa', requireMenteeOrMentor, async (req, res) => {
   try {
     const { menteeId } = req.body;
 
@@ -287,6 +309,10 @@ router.post('/analyze-psa', async (req, res) => {
     const mentee = await Mentee.findOne({ id: menteeId });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const systemPrompt = `You are an expert career coach reviewing a military veteran's self-assessment of their passions, strengths, and aspirations. Your job is to identify patterns, alignments, and tensions across the three sections that the person themselves may not have noticed.
@@ -366,7 +392,7 @@ ${mentee.aspirations || '(not provided)'}`;
 });
 
 // ── POST /api/generate-resume-bullets ────────────────────────────────────────
-router.post('/generate-resume-bullets', async (req, res) => {
+router.post('/generate-resume-bullets', requireMenteeOrMentor, async (req, res) => {
   try {
     const { menteeId } = req.body;
 
@@ -377,6 +403,10 @@ router.post('/generate-resume-bullets', async (req, res) => {
     const mentee = await Mentee.findOne({ id: menteeId });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     if (!mentee.roles || mentee.roles.length === 0) {
@@ -503,7 +533,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
 });
 
 // ── POST /api/regenerate-summary ─────────────────────────────────────────────
-router.post('/regenerate-summary', async (req, res) => {
+router.post('/regenerate-summary', requireMenteeOrMentor, async (req, res) => {
   try {
     const { menteeId } = req.body;
 
@@ -514,6 +544,10 @@ router.post('/regenerate-summary', async (req, res) => {
     const mentee = await Mentee.findOne({ id: menteeId });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const rolesText = (mentee.roles || []).map(role =>
@@ -595,7 +629,7 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
 });
 
 // ── POST /api/evaluate-job-posting ───────────────────────────────────────────
-router.post('/evaluate-job-posting', async (req, res) => {
+router.post('/evaluate-job-posting', requireMenteeOrMentor, async (req, res) => {
   try {
     const { menteeId, jobPostingText } = req.body;
 
@@ -606,6 +640,10 @@ router.post('/evaluate-job-posting', async (req, res) => {
     const mentee = await Mentee.findOne({ id: menteeId });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     // Readiness gate
@@ -753,7 +791,7 @@ ${jobPostingText}`;
 
 
 // ── POST /api/analyze-target-role ─────────────────────────────────────────────
-router.post('/analyze-target-role', async (req, res) => {
+router.post('/analyze-target-role', requireMenteeOrMentor, async (req, res) => {
   try {
     const { menteeId, jobTitle, companyOrIndustry } = req.body;
 
@@ -764,6 +802,10 @@ router.post('/analyze-target-role', async (req, res) => {
     const mentee = await Mentee.findOne({ id: menteeId });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const hasRole = mentee.roles && mentee.roles.length > 0;
@@ -920,7 +962,7 @@ Job title: ${jobTitle}${companyOrIndustry ? `\nCompany or industry: ${companyOrI
 });
 
 // ── POST /api/generate-target-role-pattern ────────────────────────────────────
-router.post('/generate-target-role-pattern', async (req, res) => {
+router.post('/generate-target-role-pattern', requireMenteeOrMentor, async (req, res) => {
   try {
     const { menteeId } = req.body;
 
@@ -931,6 +973,10 @@ router.post('/generate-target-role-pattern', async (req, res) => {
     const mentee = await Mentee.findOne({ id: menteeId });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     if (!mentee.targetRoles || mentee.targetRoles.length < 2) {
@@ -982,7 +1028,7 @@ ${rolesText}`;
 
 
 // ── POST /api/generate-session-prep ──────────────────────────────────────────
-router.post('/generate-session-prep', async (req, res) => {
+router.post('/generate-session-prep', requireMenteeOrMentor, async (req, res) => {
   try {
     const { menteeId, sessionPrepInput } = req.body;
 
@@ -993,6 +1039,10 @@ router.post('/generate-session-prep', async (req, res) => {
     const mentee = await Mentee.findOne({ id: menteeId });
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     // Build a snapshot of where the veteran is in the funnel
