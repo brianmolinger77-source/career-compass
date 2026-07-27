@@ -37,6 +37,7 @@ router.get('/:id', async (req, res) => {
     if (!req.session || !req.session.isMentor) {
       delete data.mentorNotes;
     }
+    delete data.pin;
     res.json(data);
   } catch (err) {
     console.error('Error reading mentee:', err);
