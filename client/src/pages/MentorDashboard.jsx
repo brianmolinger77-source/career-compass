@@ -446,7 +446,10 @@ export default function MentorDashboard() {
 
                   {/* PIN management */}
                   {!adminView && (
-                    <div className="no-print">
+                    <div className="no-print space-y-1.5">
+                      <p className="text-xs text-gray-500">
+                        Current PIN: <span className="font-mono font-semibold text-gray-700">{mentee.pin || 'Not set'}</span>
+                      </p>
                       {pinEditing === mentee.id ? (
                         <div className="space-y-2">
                           <div className="flex gap-2 items-center">
