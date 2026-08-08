@@ -64,7 +64,7 @@ router.post('/analyze-role', requireMenteeOrMentor, async (req, res) => {
 
 Your job is to identify three types of issues and provide specific, actionable feedback:
 
-1. JARGON & INSIDER LANGUAGE: Flag any terminology that a generalist civilian hiring manager -- someone outside this person's specific field, with no specialized knowledge of it -- would not understand. This includes military-specific terms, acronyms, rank structures, and unit designations, but is not limited to them. It also includes industry-specific technical jargon, tool or platform names, internal company terminology, and dense field-specific abbreviations, whenever the entry contains them. Judge each term by whether an outside hiring manager would recognize it, not by whether it originated in the military. For each item flagged, explain in plain English why it is opaque to that outside audience and what concept it represents.
+1. JARGON & INSIDER LANGUAGE: Flag any terminology that a generalist civilian hiring manager -- someone outside this person's specific field, with no specialized knowledge of it -- would not understand. This includes military-specific terms, acronyms, rank structures, and unit designations, but is not limited to them. It also includes industry-specific technical jargon, tool or platform names, internal company terminology, and dense field-specific abbreviations, whenever the entry contains them. Judge each term by whether an outside hiring manager would recognize it, not by whether it originated in the military. For each item flagged, explain in plain English why it is opaque to that outside audience and what concept it represents. When suggesting a civilian-friendly alternative for an acronym, only provide a specific expansion if you are highly confident it is correct and unambiguous. If you are not certain what an acronym or abbreviation stands for, do not invent a plausible-sounding expansion -- describe the general type of thing it represents instead (e.g., "a role-specific tool or system name") and note that the veteran should be ready to explain it in their own words.
 
 2. MISSING "HOW": If the entry focuses only on what they did (tasks and duties) without explaining how they approached the work — how they prioritized, managed relationships, led people, or solved problems — flag this gap. Give 2-3 specific prompting questions to help them add this dimension.
 
@@ -208,6 +208,7 @@ ${mentee.tableStakesTags && mentee.tableStakesTags.length > 0 ? `Table Stakes Ta
 CRITICAL REQUIREMENTS:
 - Written in first person, as if they are speaking it aloud to someone they just met
 - Completely free of military jargon, acronyms, rank structures, or insider language
+- When translating a term, only substitute a specific plain-language equivalent if you are highly confident it's accurate. If you're not certain what a term specifically means, describe its general function in plain language rather than inventing a specific expansion.
 - Understandable and compelling to anyone, regardless of their knowledge of the military
 - 150-200 words — substantive enough to be meaningful, concise enough to hold attention
 - Structure: opening hook → career progression thread → key strengths and themes → forward-looking close
@@ -457,7 +458,7 @@ For each role provided, generate exactly 3–4 strong bullet points:
 - Never use "we" or "our team" — hiring managers need to understand this person's specific contribution and role in the outcome. Attribute every action directly to the veteran. This is not about taking sole credit — it is about clarity.
 - If no metrics exist, describe what specifically changed or was delivered — not just what the veteran did
 
-VETERAN CONTEXT: This person served in the US military. Their instinct is to credit the team over themselves and to use language only insiders understand. Your job is to surface their individual contribution in plain civilian language. Translate rank, unit designations, and military acronyms into civilian equivalents. "Battalion" becomes "500-person organization." "OIC" becomes "officer in charge." Write for a hiring manager who has never served.
+VETERAN CONTEXT: This person served in the US military. Their instinct is to credit the team over themselves and to use language only insiders understand. Your job is to surface their individual contribution in plain civilian language. Translate rank, unit designations, and military acronyms into civilian equivalents. "Battalion" becomes "500-person organization." "OIC" becomes "officer in charge." These are examples of confident, well-established expansions. If you encounter a term you are not highly confident about, do not invent a specific expansion — describe its general function in plain language instead. Write for a hiring manager who has never served.
 
 Return ONLY valid JSON in this exact format, with no extra text before or after:
 {
