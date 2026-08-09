@@ -8,7 +8,7 @@ import TableStakes from '../components/TableStakes'
 import NarrativeCard from '../components/NarrativeCard'
 import PSAAnalysisPanel from '../components/PSAAnalysisPanel'
 import ResumeBuilder from '../components/ResumeBuilder'
-import { SaveStatusIndicator, useSaveStatus } from '../utils/autosave'
+import { SaveStatusIndicator, useSaveStatus, useFieldRetry } from '../utils/autosave'
 
 function calcCompletion(mentee) {
   const rolePoints = (mentee.roles || []).filter(r => r.whatIDid && r.howIDidIt && r.impact).length
@@ -67,6 +67,16 @@ export default function MenteeView() {
   const [isGeneratingSessionPrep, setIsGeneratingSessionPrep] = useState(false)
   const [sessionPrepError, setSessionPrepError] = useState(null)
   const { saveStatus, setSaving, setSaved, setError: setSaveError } = useSaveStatus()
+  const {
+    fieldStatuses: menteeFieldStatuses,
+    triggerFieldSave: triggerMenteeFieldSave,
+    handleManualRetry: handleMenteeManualRetry,
+    FieldSaveStatus: MenteeFieldSaveStatus
+  } = useFieldRetry({
+    resetKey: menteeId,
+    onSave: handleMenteeFieldUpdate,
+    onEmergencyFlush: handleMenteeFieldEmergencyFlush
+  })
 
   async function handleEvaluateJobPosting() {
     setIsEvaluating(true)
@@ -172,6 +182,34 @@ export default function MenteeView() {
     )
     setSaving()
     return updateMentee(menteeId, { roles: updatedRoles }, { keepalive: true })
+      .then(updated => {
+        setMentee(updated)
+        setSaved()
+        return updated
+      })
+  }
+
+  // Mentee-level field group version of handleRoleUpdate — same shape, no roles
+  // array to merge into since the patch applies directly to the mentee document.
+  // Deliberately no try/catch, same reasoning as handleRoleUpdate: on failure this
+  // rejects and propagates to the caller, which owns per-field retry/error UI via
+  // useFieldRetry. We still pulse the shared header optimistically, but never call
+  // setSaveError() here, so a failing field's error can't be silently erased by an
+  // unrelated successful save elsewhere on the page.
+  async function handleMenteeFieldUpdate(patch) {
+    setSaving()
+    const updated = await updateMentee(menteeId, patch)
+    setMentee(updated)
+    setSaved()
+    return updated
+  }
+
+  // Keepalive flush for real page teardown, mirroring handleRoleEmergencyFlush.
+  // Returns the promise so the caller can fall back to its normal per-field retry
+  // path if the keepalive request itself fails.
+  function handleMenteeFieldEmergencyFlush(patch) {
+    setSaving()
+    return updateMentee(menteeId, patch, { keepalive: true })
       .then(updated => {
         setMentee(updated)
         setSaved()
@@ -606,12 +644,16 @@ export default function MenteeView() {
                     </div>
                     <textarea
                       value={careerThread}
-                      onChange={e => setCareerThread(e.target.value)}
-                      onBlur={e => handleUpdate({ careerThread: e.target.value })}
+                      onChange={e => {
+                        const newValue = e.target.value
+                        setCareerThread(newValue)
+                        triggerMenteeFieldSave('careerThread', { careerThread: newValue }, { debounceMs: 1500 })
+                      }}
                       placeholder="Across all my roles, the one consistent thread has been..."
                       rows={3}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
                     />
+                    <MenteeFieldSaveStatus state={menteeFieldStatuses.careerThread} onRetry={() => handleMenteeManualRetry('careerThread')} />
                   </div>
                 )}
                 <div className="flex flex-col items-center gap-3 my-6 no-print">
@@ -716,7 +758,10 @@ export default function MenteeView() {
             <div className="space-y-10">
               <PassionsStrengthsAspirations
                 menteeData={mentee}
-                onUpdate={handleUpdate}
+                fieldStatuses={menteeFieldStatuses}
+                triggerFieldSave={triggerMenteeFieldSave}
+                handleManualRetry={handleMenteeManualRetry}
+                FieldSaveStatus={MenteeFieldSaveStatus}
                 onPSAAnalysisComplete={handlePSAAnalysisComplete}
                 isMentorView={false}
                 showAnalyzeButton={false}

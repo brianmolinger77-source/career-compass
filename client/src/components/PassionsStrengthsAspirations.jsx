@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import MentorComment from './MentorComment'
 import { analyzePSA } from '../utils/api'
 
@@ -39,7 +39,10 @@ const SECTIONS = [
 
 export default function PassionsStrengthsAspirations({
   menteeData,
-  onUpdate,
+  fieldStatuses,
+  triggerFieldSave,
+  handleManualRetry,
+  FieldSaveStatus,
   onPSAAnalysisComplete,
   isMentorView = false,
   mentorComments = [],
@@ -55,16 +58,11 @@ export default function PassionsStrengthsAspirations({
   })
   const [isAnalyzingPSA, setIsAnalyzingPSA] = useState(false)
   const [psaError, setPSAError] = useState(null)
-  const debounceTimers = useRef({})
 
   function handleChange(key, value) {
     const updated = { ...localData, [key]: value }
     setLocalData(updated)
-
-    if (debounceTimers.current[key]) clearTimeout(debounceTimers.current[key])
-    debounceTimers.current[key] = setTimeout(() => {
-      onUpdate({ [key]: value })
-    }, 1500)
+    triggerFieldSave(key, { [key]: value })
   }
 
   async function handleAnalyzePSA() {
@@ -137,6 +135,7 @@ export default function PassionsStrengthsAspirations({
             rows={5}
             className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
           />
+          <FieldSaveStatus state={fieldStatuses[section.key]} onRetry={() => handleManualRetry(section.key)} />
 
           {isMentorView && (
             <MentorComment
