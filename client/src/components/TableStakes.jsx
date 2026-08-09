@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import MentorComment from './MentorComment'
 
 const SUGGESTION_CHIPS = [
@@ -24,7 +24,10 @@ const PROMPTS = [
 
 export default function TableStakes({
   menteeData,
-  onUpdate,
+  fieldStatuses,
+  triggerFieldSave,
+  handleManualRetry,
+  FieldSaveStatus,
   isMentorView = false,
   mentorComments = [],
   onAddComment,
@@ -34,23 +37,15 @@ export default function TableStakes({
   const [text, setText] = useState(menteeData.tableStakes || '')
   const [tags, setTags] = useState(menteeData.tableStakesTags || [])
   const [customTag, setCustomTag] = useState('')
-  const textDebounce = useRef(null)
-  const tagsDebounce = useRef(null)
 
   function handleTextChange(value) {
     setText(value)
-    if (textDebounce.current) clearTimeout(textDebounce.current)
-    textDebounce.current = setTimeout(() => {
-      onUpdate({ tableStakes: value })
-    }, 1500)
+    triggerFieldSave('tableStakes', { tableStakes: value })
   }
 
   function updateTags(newTags) {
     setTags(newTags)
-    if (tagsDebounce.current) clearTimeout(tagsDebounce.current)
-    tagsDebounce.current = setTimeout(() => {
-      onUpdate({ tableStakesTags: newTags })
-    }, 500)
+    triggerFieldSave('tableStakesTags', { tableStakesTags: newTags }, { debounceMs: 500 })
   }
 
   function toggleChip(chip) {
@@ -114,6 +109,7 @@ export default function TableStakes({
         rows={4}
         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
       />
+      <FieldSaveStatus state={fieldStatuses.tableStakes} onRetry={() => handleManualRetry('tableStakes')} />
 
       {/* Suggestion chips */}
       <div>
@@ -181,6 +177,7 @@ export default function TableStakes({
           </div>
         </div>
       )}
+      <FieldSaveStatus state={fieldStatuses.tableStakesTags} onRetry={() => handleManualRetry('tableStakesTags')} />
 
       {isMentorView && (
         <MentorComment

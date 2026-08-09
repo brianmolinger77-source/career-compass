@@ -769,7 +769,10 @@ export default function MenteeView() {
 
               <TableStakes
                 menteeData={mentee}
-                onUpdate={handleUpdate}
+                fieldStatuses={menteeFieldStatuses}
+                triggerFieldSave={triggerMenteeFieldSave}
+                handleManualRetry={handleMenteeManualRetry}
+                FieldSaveStatus={MenteeFieldSaveStatus}
                 isMentorView={false}
               />
 
