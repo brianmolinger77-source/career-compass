@@ -10,7 +10,7 @@ import ThemesPanel from '../components/ThemesPanel'
 import MentorComment from '../components/MentorComment'
 import PSAAnalysisPanel from '../components/PSAAnalysisPanel'
 import { analyzePSA } from '../utils/api'
-import { SaveStatusIndicator, useSaveStatus } from '../utils/autosave'
+import { SaveStatusIndicator, useSaveStatus, useFieldRetry } from '../utils/autosave'
 
 function calcCompletion(mentee) {
   const roles = mentee.roles || []
@@ -58,6 +58,16 @@ export default function MentorMenteeView() {
   const [psaAnalysis, setPSAAnalysis] = useState(null)
   const [isAnalyzingPSA, setIsAnalyzingPSA] = useState(false)
   const { saveStatus, setSaving, setSaved, setError: setSaveError } = useSaveStatus()
+  const {
+    fieldStatuses: menteeFieldStatuses,
+    triggerFieldSave: triggerMenteeFieldSave,
+    handleManualRetry: handleMenteeManualRetry,
+    FieldSaveStatus: MenteeFieldSaveStatus
+  } = useFieldRetry({
+    resetKey: id,
+    onSave: handleMenteeFieldUpdate,
+    onEmergencyFlush: handleMenteeFieldEmergencyFlush
+  })
 
   useEffect(() => {
     loadMentee()
@@ -93,15 +103,32 @@ export default function MentorMenteeView() {
     if (updatedMentee) setMentee(updatedMentee)
   }
 
-  async function handleUpdate(patch) {
+  // Mentee-level field group version of handleRoleUpdate — same shape, no roles
+  // array to merge into since the patch applies directly to the mentee document.
+  // Deliberately no try/catch, same reasoning as handleRoleUpdate: on failure this
+  // rejects and propagates to the caller, which owns per-field retry/error UI via
+  // useFieldRetry. We still pulse the shared header optimistically, but never call
+  // setSaveError() here, so a failing field's error can't be silently erased by an
+  // unrelated successful save elsewhere on the page.
+  async function handleMenteeFieldUpdate(patch) {
     setSaving()
-    try {
-      const updated = await updateMentee(id, patch)
-      setMentee(updated)
-      setSaved()
-    } catch (err) {
-      setSaveError()
-    }
+    const updated = await updateMentee(id, patch)
+    setMentee(updated)
+    setSaved()
+    return updated
+  }
+
+  // Keepalive flush for real page teardown, mirroring handleRoleEmergencyFlush.
+  // Returns the promise so the caller can fall back to its normal per-field retry
+  // path if the keepalive request itself fails.
+  function handleMenteeFieldEmergencyFlush(patch) {
+    setSaving()
+    return updateMentee(id, patch, { keepalive: true })
+      .then(updated => {
+        setMentee(updated)
+        setSaved()
+        return updated
+      })
   }
 
   // Deliberately no try/catch here — on failure this rejects and propagates to the
@@ -420,7 +447,10 @@ export default function MentorMenteeView() {
           <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-6">
             <TableStakes
               menteeData={mentee}
-              onUpdate={handleUpdate}
+              fieldStatuses={menteeFieldStatuses}
+              triggerFieldSave={triggerMenteeFieldSave}
+              handleManualRetry={handleMenteeManualRetry}
+              FieldSaveStatus={MenteeFieldSaveStatus}
               isMentorView={true}
               mentorComments={mentorComments}
               onAddComment={handleAddComment}
@@ -431,7 +461,10 @@ export default function MentorMenteeView() {
 
           <PassionsStrengthsAspirations
             menteeData={mentee}
-            onUpdate={handleUpdate}
+            fieldStatuses={menteeFieldStatuses}
+            triggerFieldSave={triggerMenteeFieldSave}
+            handleManualRetry={handleMenteeManualRetry}
+            FieldSaveStatus={MenteeFieldSaveStatus}
             onPSAAnalysisComplete={handlePSAAnalysisComplete}
             isMentorView={true}
             mentorComments={mentorComments}
