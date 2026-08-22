@@ -32,7 +32,7 @@ function evaluateHowIDidIt(text) {
 const FIELD_DEFINITIONS = {
   whatIDid: {
     label: 'What I Did',
-    definition: 'The core responsibilities, tasks, and scope of your role. Think about what you were accountable for day to day and what a performance review would list as your primary duties.',
+    definition: 'The core responsibilities, tasks, and scope of your role. Think about what you were accountable for day to day and what a performance review would list as your primary duties. Write this the way you\'d explain it to another service member. Use your actual titles, acronyms, and unit terms — don\'t try to translate it into civilian language yourself. That\'s what we\'re here for. Getting your words right is more important than getting them polished.',
     placeholder: 'Describe the responsibilities and tasks that defined this role. What were you accountable for? What did your typical week look like?'
   },
   howIDidIt: {
@@ -42,7 +42,7 @@ const FIELD_DEFINITIONS = {
   },
   impact: {
     label: 'The Impact',
-    definition: 'What changed or improved because of your work. Think in terms of outcomes: people developed, processes improved, risk reduced, resources saved, mission accomplished. Use numbers and specifics wherever you can.',
+    definition: 'What changed or improved because of your work. Think in terms of outcomes: people developed, processes improved, risk reduced, resources saved, mission accomplished. Use numbers and specifics wherever you can. Use your own units of measure if that\'s what you have — personnel led, budget managed, systems maintained, area covered. We\'ll help translate the number into terms a civilian reader immediately understands.',
     placeholder: 'What changed or improved because of your work? Think outcomes, not activities. Numbers, scale, and specifics make impact credible — even estimates help.'
   }
 }

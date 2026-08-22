@@ -16,7 +16,7 @@ const SECTIONS = [
   {
     key: 'strengths',
     label: 'My Strengths',
-    definition: "A strength is something a colleague, supervisor, or teammate has told you that you're good at — in a performance review, in feedback, or just in passing. Strengths are externally validated, not self-declared. And critically: a strength is not necessarily something you enjoy. You may be excellent at something that drains your battery. Knowing the difference between your strengths and your passions is one of the most useful things this exercise will surface.",
+    definition: "A strength is something a colleague, supervisor, or teammate has told you that you're good at — in a performance review, in feedback, or just in passing. Strengths are externally validated, not self-declared. And critically: a strength is not necessarily something you enjoy. You may be excellent at something that drains your battery. Knowing the difference between your strengths and your passions is one of the most useful things this exercise will surface. If a supervisor's exact words work, use them — even if they're military-specific. 'Cited on my NCOER for...' or 'recognized for...' gives the AI something concrete to translate. General adjectives like 'hard worker' give it nothing to work with.",
     prompts: [
       "What have supervisors consistently praised in your performance reviews?",
       "What do colleagues ask you for help with?",
@@ -109,13 +109,6 @@ export default function PassionsStrengthsAspirations({
               </p>
             ))}
           </div>
-
-          {/* Passions quality bar */}
-          {section.key === 'passions' && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed no-print">
-              Be honest here, not aspirational. A passion isn't what you think you should enjoy — it's what actually charges your battery. The best signal: what work have you done beyond what's required, just because it interested you? Start there.
-            </p>
-          )}
 
           {/* Strengths-specific helper line */}
           {section.key === 'strengths' && (
