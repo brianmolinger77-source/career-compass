@@ -208,7 +208,7 @@ ${mentee.tableStakesTags && mentee.tableStakesTags.length > 0 ? `Table Stakes Ta
 CRITICAL REQUIREMENTS:
 - Written in first person, as if they are speaking it aloud to someone they just met
 - Completely free of military jargon, acronyms, rank structures, or insider language
-- When translating a term, only substitute a specific plain-language equivalent if you are highly confident it's accurate. If you're not certain what a term specifically means, describe its general function in plain language rather than inventing a specific expansion.
+- When translating a term, only substitute a specific plain-language equivalent if you are highly confident it's accurate. If you're not certain what a term specifically means, describe its general function in plain language rather than inventing a specific expansion. For terms you ARE confident about — unit designations, rank, or military-specific organizational language — actively substitute the plain-language equivalent rather than leaving the original term in place. "Battalion" becomes something like "400-person organization" (use the actual scale already stated in the source material when available). Confidence in what a term means is the reason to translate it, not a reason to leave it untranslated.
 - Understandable and compelling to anyone, regardless of their knowledge of the military
 - 150-200 words — substantive enough to be meaningful, concise enough to hold attention
 - Structure: opening hook → career progression thread → key strengths and themes → forward-looking close
