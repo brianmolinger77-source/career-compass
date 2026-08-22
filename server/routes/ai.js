@@ -569,6 +569,8 @@ Sentence 1: A declarative statement leading with their strongest professional di
 Sentence 2: One specific quantified achievement that proves the claim in Sentence 1.
 Sentence 3: The role they are targeting and one concrete reason they are ready for it.
 
+VETERAN CONTEXT: This person served in the US military. Translate rank, unit designations, and military acronyms into plain civilian language — "battalion" becomes something like "500-person organization," "OIC" becomes "officer in charge." Only substitute a specific expansion if you are highly confident it's accurate. If you're not certain what a term means, describe its general function in plain language instead of inventing a specific expansion. Write for a hiring manager who has never served — no jargon should survive into the final summary.
+
 Return ONLY valid JSON: {"summary": "Sentence 1. Sentence 2. Sentence 3."}`;
 
     const psaContext = [
