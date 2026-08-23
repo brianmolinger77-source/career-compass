@@ -62,6 +62,8 @@ router.post('/analyze-role', requireMenteeOrMentor, async (req, res) => {
 
     const systemPrompt = `You are an expert career coach helping military veterans translate their service experience into compelling civilian career language. You are reviewing a role entry from a veteran's career pathing document.
 
+Before evaluating, assess how this entry arrived: does it contain untranslated military jargon, acronyms, or rank/unit references that need decoding (address these in JARGON & INSIDER LANGUAGE below)? Or does it already read as civilian language that may have lost scope, scale, or impact in the veteran's own attempt to translate it -- meaning the entry sounds fine on the surface but is thinner than the underlying work actually was? Address whichever is actually present, sometimes both, sometimes neither. Never assume one over the other. An entry that reads cleanly but has no jargon to flag can still be flattened -- treat that as a MISSING IMPACT signal, not just a wording issue, and prompt for the scale, scope, or authority that appear to have been dropped in translation.
+
 Your job is to identify three types of issues and provide specific, actionable feedback:
 
 1. JARGON & INSIDER LANGUAGE: Flag any terminology that a generalist civilian hiring manager -- someone outside this person's specific field, with no specialized knowledge of it -- would not understand. This includes military-specific terms, acronyms, rank structures, and unit designations, but is not limited to them. It also includes industry-specific technical jargon, tool or platform names, internal company terminology, and dense field-specific abbreviations, whenever the entry contains them. Judge each term by whether an outside hiring manager would recognize it, not by whether it originated in the military. For each item flagged, explain in plain English why it is opaque to that outside audience and what concept it represents. When suggesting a civilian-friendly alternative for an acronym, only provide a specific expansion if you are highly confident it is correct and unambiguous. If you are not certain what an acronym or abbreviation stands for, do not invent a plausible-sounding expansion -- describe the general type of thing it represents instead (e.g., "a role-specific tool or system name") and note that the veteran should be ready to explain it in their own words. When the flagged term is a job title, role name, or position -- not just an acronym or tool name -- the suggested civilian-friendly alternative must preserve the scope and scale of the role rather than defaulting to a generic-sounding title. Look for scope signals elsewhere in the entry: organization size, geographic span, number of people led or trained, level of authority, or scale of the mission. Reflect that scope directly in the suggested title rather than dropping it for brevity.
@@ -205,6 +207,8 @@ ${mentee.tableStakesTags && mentee.tableStakesTags.length > 0 ? `Table Stakes Ta
 
     const systemPrompt = `You are an expert career coach helping a military veteran craft a compelling civilian career narrative. Based on their career history and self-assessment below, write a first-person "tell me about yourself" narrative they can use at networking events, job fairs, conferences, or in interviews.
 
+Before writing, assess the source material: does it contain untranslated military jargon, acronyms, or rank/unit references that need decoding (handled in the jargon requirement below)? Or does it already read as flattened civilian language that undersells the veteran's actual scope, scale, or impact -- the veteran's own earlier translation attempt, not yours? Address whichever is actually present, sometimes both. When the source material already reads as generic civilian phrasing, do not simply preserve that flatness in the narrative -- actively restore the scope and impact that the surrounding role details and PSA context make evident, the same way you would translate an untranslated term.
+
 CRITICAL REQUIREMENTS:
 - Written in first person, as if they are speaking it aloud to someone they just met
 - Completely free of military jargon, acronyms, rank structures, or insider language
@@ -318,11 +322,14 @@ router.post('/analyze-psa', requireMenteeOrMentor, async (req, res) => {
 
     const systemPrompt = `You are an expert career coach reviewing a military veteran's self-assessment of their passions, strengths, and aspirations. Your job is to identify patterns, alignments, and tensions across the three sections that the person themselves may not have noticed.
 
+Before analyzing, assess how each section arrived: does it contain untranslated military jargon, acronyms, or rank/unit references that need decoding before the underlying pattern is legible? Or does it already read as flattened civilian language that may have lost scope, scale, or impact in the veteran's own attempt to translate it -- meaning a real signal could be sitting underneath a generic-sounding phrase? Address whichever is actually present in each section, sometimes both, sometimes neither. Never assume one over the other. A flattened section (lost scope or impact) is itself a MISSING DIMENSION or CAREER SIGNAL worth surfacing, not just a wording problem.
+
 Look for:
 1. ALIGNMENTS: Where passions and strengths overlap — activities they enjoy AND are recognized as good at. These are the strongest signals for career targeting.
 2. TENSIONS: Where aspirations conflict with passions or strengths. For example, aspiring to a leadership role while noting that meetings and conflict resolution drain energy. Name these directly but constructively.
 3. CAREER SIGNALS: Any specific interests, skills, or environments mentioned that point toward a particular type of role or industry — especially anything that seems surprising or different from what their career history might suggest.
 4. MISSING DIMENSION: What seems underrepresented or vague that would be worth exploring in a mentoring conversation.
+5. JARGON & INSIDER LANGUAGE: Flag any terminology in these sections that a generalist civilian hiring manager — someone outside this person's specific field, with no specialized knowledge of it — would not understand. This includes military-specific terms, acronyms, rank structures, and unit designations, but is not limited to them; it also includes industry-specific technical jargon and dense field-specific abbreviations wherever present. For each item flagged, explain in plain English what concept it represents. Only provide a specific expansion if you are highly confident it is correct and unambiguous — if you are not certain, describe the general type of thing it represents instead of inventing a plausible-sounding expansion. If no jargon is present, return an empty array — do not manufacture flags.
 
 Return as JSON:
 {
@@ -336,7 +343,10 @@ Return as JSON:
     {"signal": "specific signal or interest noted", "possibleDirection": "what role or industry this might point toward"}
   ],
   "missingDimension": "what seems underexplored and worth discussing",
-  "coachingPriority": "the single most important thing a mentor should explore in the next session based on this self-assessment"
+  "coachingPriority": "the single most important thing a mentor should explore in the next session based on this self-assessment",
+  "jargonFlags": [
+    {"term": "the flagged term or phrase", "explanation": "what it represents, in plain English", "suggestion": "a civilian-friendly alternative or explanation"}
+  ]
 }`;
 
     const userMessage = `Please analyze this veteran's Passions, Strengths, and Aspirations self-assessment:
@@ -458,7 +468,7 @@ For each role provided, generate exactly 3–4 strong bullet points:
 - Never use "we" or "our team" — hiring managers need to understand this person's specific contribution and role in the outcome. Attribute every action directly to the veteran. This is not about taking sole credit — it is about clarity.
 - If no metrics exist, describe what specifically changed or was delivered — not just what the veteran did
 
-VETERAN CONTEXT: This person served in the US military. Their instinct is to credit the team over themselves and to use language only insiders understand. Your job is to surface their individual contribution in plain civilian language. Translate rank, unit designations, and military acronyms into civilian equivalents. "Battalion" becomes "500-person organization." "OIC" becomes "officer in charge." These are examples of confident, well-established expansions. If you encounter a term you are not highly confident about, do not invent a specific expansion — describe its general function in plain language instead. Write for a hiring manager who has never served.
+VETERAN CONTEXT: This person served in the US military. Their instinct is to credit the team over themselves and to use language only insiders understand. Your job is to surface their individual contribution in plain civilian language. Translate rank, unit designations, and military acronyms into civilian equivalents. "Battalion" becomes "500-person organization." "OIC" becomes "officer in charge." These are examples of confident, well-established expansions. If you encounter a term you are not highly confident about, do not invent a specific expansion — describe its general function in plain language instead. Write for a hiring manager who has never served. Before writing each bullet, also check whether the source material has already been translated by the veteran into flat, generic civilian phrasing that undersells real scope or scale — if so, restore that scope from other details in the role (org size, budget, people led, geographic reach) rather than carrying the flatness into the bullet. Address whichever is actually present in the source text, jargon or flattening, sometimes both.
 
 Return ONLY valid JSON in this exact format, with no extra text before or after:
 {
@@ -569,7 +579,7 @@ Sentence 1: A declarative statement leading with their strongest professional di
 Sentence 2: One specific quantified achievement that proves the claim in Sentence 1.
 Sentence 3: The role they are targeting and one concrete reason they are ready for it.
 
-VETERAN CONTEXT: This person served in the US military. Translate rank, unit designations, and military acronyms into plain civilian language — "battalion" becomes something like "500-person organization," "OIC" becomes "officer in charge." Only substitute a specific expansion if you are highly confident it's accurate. If you're not certain what a term means, describe its general function in plain language instead of inventing a specific expansion. Write for a hiring manager who has never served — no jargon should survive into the final summary.
+VETERAN CONTEXT: This person served in the US military. Translate rank, unit designations, and military acronyms into plain civilian language — "battalion" becomes something like "500-person organization," "OIC" becomes "officer in charge." Only substitute a specific expansion if you are highly confident it's accurate. If you're not certain what a term means, describe its general function in plain language instead of inventing a specific expansion. Write for a hiring manager who has never served — no jargon should survive into the final summary. If the source material already reads as flat civilian phrasing that has lost real scope or scale, do not preserve that flatness in Sentence 2 — pull the actual scale from elsewhere in the career history so the achievement stays specific and quantified.
 
 Return ONLY valid JSON: {"summary": "Sentence 1. Sentence 2. Sentence 3."}`;
 
