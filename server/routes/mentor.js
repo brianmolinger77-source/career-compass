@@ -8,6 +8,10 @@ const mongoose = require('mongoose');
 const ApiUsageLog = require('../models/ApiUsageLog');
 const ErrorLog = require('../models/ErrorLog');
 const { logError } = require('../utils/errorLog');
+const crypto = require('crypto');
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 function nameToSlug(name) {
   return name
@@ -83,6 +87,97 @@ router.post('/login', async (req, res) => {
     console.error('Login error:', err);
     await logError('POST /api/mentor/login', 'POST', err, null, 'critical');
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+
+    const { email } = req.body;
+    const genericResponse = { message: 'If that email is associated with a mentor account, a reset link has been sent.' };
+
+    if (!email) {
+      return res.json(genericResponse);
+    }
+
+    const mentor = await Mentor.findOne({ email: email.toLowerCase().trim() });
+
+    if (mentor && mentor.isActive) {
+      const now = new Date();
+      const cooldownActive = mentor.resetPasswordExpiresAt && mentor.resetPasswordExpiresAt > now;
+
+      if (!cooldownActive) {
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+        mentor.resetPasswordTokenHash = tokenHash;
+        mentor.resetPasswordExpiresAt = new Date(now.getTime() + 60 * 60 * 1000);
+        await mentor.save();
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const resetLink = `${frontendUrl}/mentor/reset-password?token=${rawToken}`;
+
+        try {
+          await resend.emails.send({
+            from: 'Career Compass <noreply@milcareercompass.com>',
+            to: mentor.email,
+            subject: 'Reset your Career Compass password',
+            text: `Hi,\n\nWe got a request to reset your Career Compass mentor password. Click the link below to set a new one.\n\n${resetLink}\n\nThis link expires in 1 hour.\n\nIf you didn't ask for this, you can ignore this email. Your password will stay the same.\n\n— Career Compass`
+          });
+        } catch (emailErr) {
+          console.error('Error sending password reset email:', emailErr);
+          await logError('POST /api/mentor/forgot-password', 'POST', emailErr, null, 'error');
+        }
+      }
+    }
+
+    res.json(genericResponse);
+  } catch (err) {
+    console.error('Error in forgot-password:', err);
+    await logError('POST /api/mentor/forgot-password', 'POST', err, null, 'critical');
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const now = new Date();
+
+    const mentor = await Mentor.findOne({
+      resetPasswordTokenHash: tokenHash,
+      resetPasswordExpiresAt: { $gt: now }
+    });
+
+    if (!mentor) {
+      return res.status(400).json({ error: 'This reset link is invalid or has expired. Please request a new one.' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    mentor.passwordHash = passwordHash;
+    mentor.resetPasswordTokenHash = null;
+    mentor.resetPasswordExpiresAt = null;
+    mentor.updatedAt = now;
+    await mentor.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error in reset-password:', err);
+    await logError('POST /api/mentor/reset-password', 'POST', err, null, 'critical');
+    res.status(500).json({ error: 'Something went wrong. Please try again.' });
   }
 });
 

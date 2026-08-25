@@ -16,6 +16,8 @@ const mentorSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   role:         { type: String, enum: ['mentor', 'superuser'], default: 'mentor' },
   isActive:     { type: Boolean, default: true },
+  resetPasswordTokenHash: { type: String, default: null },
+  resetPasswordExpiresAt: { type: Date, default: null },
   createdAt:    { type: Date },
   updatedAt:    { type: Date }
 }, {
@@ -27,6 +29,7 @@ mentorSchema.set('toJSON', {
     delete ret._id;
     delete ret.__v;
     delete ret.passwordHash;
+    delete ret.resetPasswordTokenHash;
     return ret;
   }
 });

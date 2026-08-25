@@ -109,6 +109,20 @@ export function checkAuth() {
   return request('/api/mentor/check')
 }
 
+export function forgotPassword(email) {
+  return request('/api/mentor/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email })
+  })
+}
+
+export function resetPassword(token, newPassword) {
+  return request('/api/mentor/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword })
+  })
+}
+
 export function addComment(menteeId, section, comment) {
   return request(`/api/mentor/mentee/${menteeId}/comments`, {
     method: 'POST',

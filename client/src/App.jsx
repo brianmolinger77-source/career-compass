@@ -4,6 +4,8 @@ import MenteeView from './pages/MenteeView'
 import MentorDashboard from './pages/MentorDashboard'
 import MentorMenteeView from './pages/MentorMenteeView'
 import MentorLogin from './pages/MentorLogin'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import { checkAuth } from './utils/api'
 
 function ProtectedRoute({ children }) {
@@ -41,6 +43,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/mentor" replace />} />
         <Route path="/mentor/login" element={<MentorLogin />} />
+        <Route path="/mentor/forgot-password" element={<ForgotPassword />} />
+        <Route path="/mentor/reset-password" element={<ResetPassword />} />
         <Route
           path="/mentor"
           element={

@@ -83,6 +83,16 @@ export default function MentorLogin() {
               />
             </div>
 
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={() => navigate('/mentor/forgot-password')}
+                className="text-sm text-[#1F4E79] hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3">
                 <p className="text-sm text-red-700">{error}</p>
