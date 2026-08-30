@@ -11,7 +11,7 @@ function formatDate(iso) {
 export default function PSAAnalysisPanel({ psaAnalysis, isMentorView = false, onReAnalyze, isAnalyzing = false }) {
   if (!psaAnalysis) return null
 
-  const { alignments = [], tensions = [], careerSignals = [], missingDimension, coachingPriority, analyzedAt } = psaAnalysis
+  const { alignments = [], tensions = [], careerSignals = [], jargonFlags = [], missingDimension, coachingPriority, analyzedAt } = psaAnalysis
 
   return (
     <div className="space-y-4">
@@ -72,6 +72,22 @@ export default function PSAAnalysisPanel({ psaAnalysis, isMentorView = false, on
             <div key={i} className="space-y-0.5">
               <p className="text-sm text-gray-800">{item.signal}</p>
               <p className="text-xs text-blue-700 italic">{item.possibleDirection}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Jargon to Translate */}
+      {jargonFlags.length > 0 && (
+        <div className="border-l-4 border-purple-500 pl-4 py-3 bg-purple-50 rounded-r-lg space-y-3">
+          <p className="text-xs font-semibold text-purple-800 uppercase tracking-wide">Jargon to Translate</p>
+          {jargonFlags.map((flag, i) => (
+            <div key={i} className="space-y-0.5">
+              <p className="text-sm font-bold text-gray-800">&ldquo;{flag.term}&rdquo;</p>
+              <p className="text-sm text-gray-800">{flag.explanation}</p>
+              {flag.suggestion && (
+                <p className="text-xs text-purple-700 italic">Try instead: {flag.suggestion}</p>
+              )}
             </div>
           ))}
         </div>
