@@ -105,6 +105,7 @@ export default function MenteeView() {
 
   useEffect(() => {
     if (!mentee) return
+    if (!pinVerified && !isMentor) return
     const hasRole = (mentee.roles || []).some(r => r.whatIDid && r.howIDidIt && r.impact)
     const hasPSA = !!(mentee.passions?.trim() && mentee.strengths?.trim() && mentee.aspirations?.trim())
     const hasNarrative = !!mentee.generatedNarrative
@@ -123,7 +124,7 @@ export default function MenteeView() {
       .then(result => setMentee(result.mentee))
       .catch(err => console.error('Background readiness analysis failed:', err))
       .finally(() => setIsAnalyzingReadiness(false))
-  }, [mentee, menteeId])
+  }, [mentee, menteeId, pinVerified, isMentor])
 
 
   useEffect(() => {
