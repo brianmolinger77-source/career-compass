@@ -7,6 +7,7 @@ import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirat
 import TableStakes from '../components/TableStakes'
 import NarrativeCard from '../components/NarrativeCard'
 import PSAAnalysisPanel from '../components/PSAAnalysisPanel'
+import ReadinessPanel from '../components/ReadinessPanel'
 import ResumeBuilder from '../components/ResumeBuilder'
 import { SaveStatusIndicator, useSaveStatus, useFieldRetry } from '../utils/autosave'
 
@@ -30,6 +31,7 @@ const TAB_LABELS = [
   'Resume',
   'Target Roles',
   'Job Eval',
+  'Where You Stand',
 ]
 
 export default function MenteeView() {
@@ -454,6 +456,14 @@ export default function MenteeView() {
     mentee.tableStakes?.trim()
   )
 
+  const readinessPreconditionsMet = !!(
+    roles.some(r => r.whatIDid && r.howIDidIt && r.impact) &&
+    mentee.passions?.trim() &&
+    mentee.strengths?.trim() &&
+    mentee.aspirations?.trim() &&
+    mentee.generatedNarrative
+  )
+
   const tabUnlocked = [
     true,
     roles.length >= 1,
@@ -461,6 +471,7 @@ export default function MenteeView() {
     psaAndStakesComplete,
     psaAndStakesComplete,
     roles.length >= 1 && psaAndStakesComplete,
+    readinessPreconditionsMet,
   ]
 
   const lockMessages = [
@@ -470,6 +481,7 @@ export default function MenteeView() {
     'Complete your Passions, Strengths, Aspirations, and Table Stakes to unlock this.',
     'Add at least 2 roles with content and complete your PSA to unlock this.',
     'Complete Career History and all PSA fields to unlock this.',
+    'Complete at least one full role in Career History, your Passions, Strengths, and Aspirations, and generate your Story in My Story to unlock this.',
   ]
 
   function handleTabClick(idx) {
@@ -485,6 +497,7 @@ export default function MenteeView() {
     if (idx === 3) return showResumeBuilder
     if (idx === 4) return false
     if (idx === 5) return !!jobAnalysis
+    if (idx === 6) return readinessPreconditionsMet && !!mentee.readinessAnalysis
     return false
   })
 
@@ -573,11 +586,11 @@ export default function MenteeView() {
               })}
           </div>
           <div className="flex items-center gap-2 px-3 pb-2">
-            <span className="text-xs text-gray-400">Step {activeTab + 1} of 6</span>
+            <span className="text-xs text-gray-400">Step {activeTab + 1} of {TAB_LABELS.length}</span>
             <div className="flex-1 bg-gray-100 rounded-full h-1">
               <div
                 className="bg-[#1F4E79] h-1 rounded-full transition-all"
-                style={{ width: `${((activeTab + 1) / 6) * 100}%` }}
+                style={{ width: `${((activeTab + 1) / TAB_LABELS.length) * 100}%` }}
               />
             </div>
           </div>
@@ -1169,6 +1182,27 @@ export default function MenteeView() {
                 </p>
               </div>
             )}
+          </section>
+        )}
+
+        {/* Tab 6: Where You Stand */}
+        {activeTab === 6 && tabUnlocked[6] && (
+          <section>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-[#1F4E79]">Where You Stand</h2>
+              <p className="text-gray-600 mt-2 leading-relaxed text-sm">
+                This runs automatically once your Career History, Passions &amp; Strengths, and Story are in place. It looks across all three together to surface real patterns and name where things still need more specificity — not a pass or fail, just an honest read to work from with your mentor.
+              </p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+              {mentee.readinessAnalysis ? (
+                <ReadinessPanel readinessAnalysis={mentee.readinessAnalysis} isMentorView={false} />
+              ) : isAnalyzingReadiness ? (
+                <p className="text-sm text-gray-500">Looking across your profile now — this happens automatically and usually takes a few seconds.</p>
+              ) : (
+                <p className="text-sm text-gray-500">This will generate automatically in a moment.</p>
+              )}
+            </div>
           </section>
         )}
 
