@@ -69,6 +69,7 @@ const menteeSchema = new mongoose.Schema({
   mentorComments:       { type: [commentSchema], default: [] },
   careerThread:         { type: String, default: '' },
   psaAnalysis:          { type: mongoose.Schema.Types.Mixed, default: null },
+  readinessAnalysis:    { type: mongoose.Schema.Types.Mixed, default: null },
   resumeBullets:        { type: mongoose.Schema.Types.Mixed, default: null },
   resumeGeneratedAt:    { type: Date, default: null },
   resumeSkills:         { type: [String], default: [] },
