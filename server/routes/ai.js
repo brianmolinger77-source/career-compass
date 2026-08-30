@@ -44,8 +44,10 @@ function isMenteeAuthorized(mentee, req) {
 
 // ── POST /api/analyze-role ────────────────────────────────────────────────────
 router.post('/analyze-role', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
   try {
-    const { menteeId, roleId, whatIDid, howIDidIt, impact } = req.body;
+    ({ menteeId } = req.body);
+    const { roleId, whatIDid, howIDidIt, impact } = req.body;
 
     if (!menteeId || !roleId) {
       return res.status(400).json({ error: 'menteeId and roleId are required' });
@@ -166,8 +168,10 @@ Provide specific, actionable feedback to help translate this into compelling civ
 
 // ── POST /api/generate-narrative ─────────────────────────────────────────────
 router.post('/generate-narrative', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
   try {
-    const { menteeId, careerThread: careerThreadFromRequest } = req.body;
+    ({ menteeId } = req.body);
+    const { careerThread: careerThreadFromRequest } = req.body;
 
     if (!menteeId) {
       return res.status(400).json({ error: 'menteeId is required' });
@@ -304,8 +308,9 @@ Please write their civilian career narrative and provide themes and feedback.`;
 
 // ── POST /api/analyze-psa ─────────────────────────────────────────────────────
 router.post('/analyze-psa', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
   try {
-    const { menteeId } = req.body;
+    ({ menteeId } = req.body);
 
     if (!menteeId) {
       return res.status(400).json({ error: 'menteeId is required' });
@@ -404,8 +409,9 @@ ${mentee.aspirations || '(not provided)'}`;
 
 // ── POST /api/generate-resume-bullets ────────────────────────────────────────
 router.post('/generate-resume-bullets', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
   try {
-    const { menteeId } = req.body;
+    ({ menteeId } = req.body);
 
     if (!menteeId) {
       return res.status(400).json({ error: 'menteeId is required' });
@@ -545,8 +551,9 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
 
 // ── POST /api/regenerate-summary ─────────────────────────────────────────────
 router.post('/regenerate-summary', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
   try {
-    const { menteeId } = req.body;
+    ({ menteeId } = req.body);
 
     if (!menteeId) {
       return res.status(400).json({ error: 'menteeId is required' });
@@ -643,8 +650,10 @@ ${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not 
 
 // ── POST /api/evaluate-job-posting ───────────────────────────────────────────
 router.post('/evaluate-job-posting', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
   try {
-    const { menteeId, jobPostingText } = req.body;
+    ({ menteeId } = req.body);
+    const { jobPostingText } = req.body;
 
     if (!menteeId || !jobPostingText) {
       return res.status(400).json({ error: 'menteeId and jobPostingText are required' });
@@ -805,8 +814,10 @@ ${jobPostingText}`;
 
 // ── POST /api/analyze-target-role ─────────────────────────────────────────────
 router.post('/analyze-target-role', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
   try {
-    const { menteeId, jobTitle, companyOrIndustry } = req.body;
+    ({ menteeId } = req.body);
+    const { jobTitle, companyOrIndustry } = req.body;
 
     if (!menteeId || !jobTitle) {
       return res.status(400).json({ error: 'menteeId and jobTitle are required' });
@@ -976,8 +987,9 @@ Job title: ${jobTitle}${companyOrIndustry ? `\nCompany or industry: ${companyOrI
 
 // ── POST /api/generate-target-role-pattern ────────────────────────────────────
 router.post('/generate-target-role-pattern', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
   try {
-    const { menteeId } = req.body;
+    ({ menteeId } = req.body);
 
     if (!menteeId) {
       return res.status(400).json({ error: 'menteeId is required' });
@@ -1042,8 +1054,10 @@ ${rolesText}`;
 
 // ── POST /api/generate-session-prep ──────────────────────────────────────────
 router.post('/generate-session-prep', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
   try {
-    const { menteeId, sessionPrepInput } = req.body;
+    ({ menteeId } = req.body);
+    const { sessionPrepInput } = req.body;
 
     if (!menteeId) {
       return res.status(400).json({ error: 'menteeId is required' });
