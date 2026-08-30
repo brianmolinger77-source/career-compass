@@ -1299,6 +1299,7 @@ ${mentee.generatedNarrative}`;
       }
     } catch (parseErr) {
       console.error('Failed to parse readiness analysis response:', parseErr);
+      console.log('RAW READINESS ANALYSIS RESPONSE FOR DEBUG:', rawText);
       return res.status(500).json({
         error: 'Analysis unavailable right now — try again in a moment.'
       });
