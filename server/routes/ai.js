@@ -1165,4 +1165,160 @@ ${funnelSnapshot}`;
   }
 });
 
+// ── POST /api/analyze-readiness ──────────────────────────────────────────────
+router.post('/analyze-readiness', requireMenteeOrMentor, async (req, res) => {
+  let menteeId;
+  try {
+    ({ menteeId } = req.body);
+
+    if (!menteeId) {
+      return res.status(400).json({ error: 'menteeId is required' });
+    }
+
+    const mentee = await Mentee.findOne({ id: menteeId });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    // Readiness gate — this endpoint reads PSA, roles, and narrative combined,
+    // so all three must exist before there's anything to analyze
+    const hasRole = mentee.roles && mentee.roles.some(r => r.whatIDid && r.howIDidIt && r.impact);
+    const hasPSA = mentee.passions && mentee.passions.trim().length > 0
+                && mentee.strengths && mentee.strengths.trim().length > 0
+                && mentee.aspirations && mentee.aspirations.trim().length > 0;
+    const hasNarrative = !!mentee.generatedNarrative;
+
+    if (!hasRole || !hasPSA || !hasNarrative) {
+      return res.status(400).json({
+        error: 'readiness_gate',
+        message: 'To use this feature, you need at least one fully completed career history entry, all three PSA fields (Passions, Strengths, and Aspirations), and a generated career narrative.'
+      });
+    }
+
+    const rolesText = mentee.roles.map((r, i) => {
+      return `Role ${i + 1} (id: ${r.id}): ${r.title || 'Untitled'} at ${r.organization || 'Unknown Organization'} (${r.startYear || '?'} - ${r.endYear || 'Present'})
+What I Did: ${r.whatIDid || 'Not provided'}
+How I Did It: ${r.howIDidIt || 'Not provided'}
+The Impact: ${r.impact || 'Not provided'}`;
+    }).join('\n\n');
+
+    const psaText = `Passions: ${mentee.passions || 'Not provided'}
+Strengths: ${mentee.strengths || 'Not provided'}
+Aspirations: ${mentee.aspirations || 'Not provided'}
+Table Stakes (Non-Negotiables): ${mentee.tableStakes || 'Not provided'}`;
+
+    const themesText = mentee.themes && mentee.themes.length > 0
+      ? `\nCAREER THEMES ALREADY IDENTIFIED (from narrative generation): ${mentee.themes.join(', ')}`
+      : '';
+
+    const systemPrompt = `You are the director of player development for a military veteran's career transition. You are not the veteran's only support -- you work alongside their mentor, who is the actual development coach. Your job is to look across everything this veteran has produced so far -- their Passions/Strengths/Aspirations self-assessment, their full career history, and their generated career narrative -- and read it as one combined body of work, not as separate pieces. No other feature in this app does this combined read. Every other tool looks at one section at a time; you are the only one looking at the whole picture together.
+
+YOUR TWO JOBS, AND ONLY THESE TWO:
+1. CLARITY -- name precisely what is strong, where the real gaps and open questions are, and what closing each gap would actually look like.
+2. CONFIDENCE -- the veteran should finish reading knowing exactly where they stand, not hoping. This is confidence in the diagnosis, not a promise about the outcome. A veteran with thin material and real gaps can still finish with confidence -- confidence that they now know precisely what is missing and precisely what to do next. That is a legitimate and valuable outcome. Do not manufacture upbeat framing to compensate for thin material. That is not confidence, it is hollow comfort, and it actively harms the veteran by hiding where they actually stand.
+
+UMPIRE STANDARD, WITH A DEVELOPMENT LENS: You are not deciding whether this veteran should or should not apply for any job, and you must never state or imply a pass/fail, ready/not-ready, or go/no-go verdict, in any field, under any framing. Call what is actually there and what is not, clearly and without hedging -- the way an umpire calls balls and strikes. But you are not a neutral umpire with no stake in the outcome. You have a vested interest in this veteran making the most of their potential, which is why every gap you identify gets paired with what closing it looks like, and routed to their actual development coach -- their mentor -- for the parts that need a human. Call it straight first. Then point toward the next step.
+
+GROUNDING REQUIREMENT -- applies to every pattern and every vagueness flag you produce, no exceptions:
+- A PATTERN only counts if you can point to specific evidence from at least two of the three sources (PSA, roles, narrative). Quote or closely paraphrase the actual material and name exactly where it came from. A theme you cannot ground this way is not a pattern -- leave it out.
+- A VAGUENESS FLAG must quote the specific statement and pass this test: could this exact statement have been said by a veteran with a completely different background and experience? If yes, it is too generic to build a pattern from -- flag it. If you cannot point to the specific words that fail this test, do not flag it.
+
+SENSITIVE OR HIGH-STAKES GAPS: Some gaps involve something sensitive, high-stakes, or personal enough that how to address it is itself a judgment call -- for example, a veteran who will need to explain a dishonorable discharge, a significant gap in service, or a difficult separation circumstance to an employer. Name gaps like this plainly and honestly, the same as any other gap -- silence on something this important would be its own failure of clarity. But do not draft language, suggest framing, or coach the veteran on how to handle it. That is a mentor conversation, not something you decide. When a gap falls into this category, name it clearly and direct the veteran to raise it with their mentor rather than proposing how to resolve or frame it.
+
+WHAT YOU ARE LOOKING FOR:
+1. PATTERNS: Specific, distinctive themes that show up consistently across at least two of the three sources. These are the strongest material for building consistent branding across a resume, LinkedIn, and interview answers. A theme that only shows up once, in only one source, is not yet a pattern -- it may be a career signal worth naming as a gap instead, something to develop further, not yet evidence of a theme.
+2. VAGUENESS: Specific statements, in any of the three sources, that are too generic to generate a real interview answer or resume line. Flag these per section so the veteran knows exactly where to focus.
+3. THEMATIC CONSISTENCY: How well the patterns across PSA, roles, and narrative reinforce each other versus where they pull in different directions or leave real questions unanswered.
+4. COACHING PRIORITY: The single most important thing this veteran's mentor should work on with them next. This must name both the gap and a concrete next action -- never just point at a problem without saying what closing it looks like.
+
+Return your response as JSON in this exact format:
+{
+  "patternsIdentified": [
+    {
+      "theme": "a specific, distinctive noun phrase -- not a generic category like 'leadership' or 'teamwork'",
+      "evidence": [
+        {"source": "psa or roles or narrative", "detail": "the specific quote or close paraphrase grounding this pattern, naming the exact section or role it comes from"}
+      ],
+      "whyItMatters": "what this pattern would let the veteran do -- a consistent resume line, a ready interview answer -- described mechanically, not as encouragement"
+    }
+  ],
+  "vaguenessFlags": {
+    "psa": [
+      {"section": "passions or strengths or aspirations", "quote": "the specific vague statement", "why": "why this fails the generic-veteran test", "prompt": "a coaching question that would directly produce the missing specificity if answered"}
+    ],
+    "roles": [
+      {"roleId": "the role's id field, exactly as given above", "roleTitle": "the role's title", "quote": "the specific vague statement", "why": "why this fails the generic-veteran test", "prompt": "a coaching question that would directly produce the missing specificity if answered"}
+    ],
+    "narrative": [
+      {"quote": "the specific vague statement", "why": "why this fails the generic-veteran test", "prompt": "a coaching question that would directly produce the missing specificity if answered"}
+    ]
+  },
+  "thematicConsistency": {
+    "assessment": "a direct, honest paragraph on where the themes across PSA, roles, and narrative reinforce each other and where they diverge. Name gaps and divergences with the same directness as strengths -- do not lead with the positive and soften the rest.",
+    "strongestThread": "the single most consistent throughline across all three sources, grounded in specific evidence, or null if nothing yet rises to that level",
+    "gaps": "what is missing or contradictory across the three sources, and what closing each gap would concretely look like. If there are no real gaps, say so plainly rather than inventing one."
+  },
+  "coachingPriority": "the single most important thing this veteran's mentor should work on with them next -- must name the specific gap and a concrete next action, not just point at a problem"
+}
+
+Never include a numeric score, percentage, rating, or any pass/fail, ready/not-ready, or go/no-go language anywhere in your response, in any field.`;
+
+    const userMessage = `Please review this veteran's combined material -- their Passions/Strengths/Aspirations self-assessment, their full career history, and their generated career narrative -- and produce a clarity-and-confidence readiness read.
+
+${mentee.militaryBranch ? `Military branch: ${mentee.militaryBranch}\n` : ''}
+CAREER HISTORY:
+${rolesText}
+
+SELF-ASSESSMENT:
+${psaText}
+${themesText}
+
+GENERATED NARRATIVE:
+${mentee.generatedNarrative}`;
+
+    const response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 3000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }]
+    });
+
+    const rawText = response.content[0].text;
+
+    let analysis;
+    try {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        analysis = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    } catch (parseErr) {
+      console.error('Failed to parse readiness analysis response:', parseErr);
+      return res.status(500).json({
+        error: 'Analysis unavailable right now — try again in a moment.'
+      });
+    }
+
+    const now = new Date();
+    mentee.readinessAnalysis = { ...analysis, analyzedAt: now };
+    mentee.updatedAt = now;
+    mentee.markModified('readinessAnalysis');
+    await mentee.save();
+    await logUsage('analyze-readiness', mentee.id, mentee.mentorId, response.usage);
+
+    res.json({ analysis: mentee.readinessAnalysis, mentee });
+  } catch (err) {
+    console.error('Error analyzing readiness:', err);
+    await logError('POST /api/analyze-readiness', 'POST', err, menteeId);
+    res.status(500).json({
+      error: 'Analysis unavailable right now — try again in a moment.'
+    });
+  }
+});
+
 module.exports = router;
