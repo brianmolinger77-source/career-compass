@@ -63,6 +63,13 @@ export function analyzePSA(menteeId) {
   })
 }
 
+export function analyzeReadiness(menteeId) {
+  return request('/api/analyze-readiness', {
+    method: 'POST',
+    body: JSON.stringify({ menteeId })
+  })
+}
+
 export function getMentees() {
   return request('/api/mentor/mentees')
 }

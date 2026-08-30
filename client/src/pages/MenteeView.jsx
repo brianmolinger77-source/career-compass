@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA, analyzeTargetRole, generateTargetRolePattern, deleteTargetRole, generateSessionPrep, verifyPin } from '../utils/api'
+import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA, analyzeReadiness, analyzeTargetRole, generateTargetRolePattern, deleteTargetRole, generateSessionPrep, verifyPin } from '../utils/api'
 import RoleCard from '../components/RoleCard'
 import VennDiagram from '../components/VennDiagram'
 import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirations'
@@ -49,6 +49,8 @@ export default function MenteeView() {
   const [psaAnalysis, setPSAAnalysis] = useState(null)
   const [isAnalyzingPSA, setIsAnalyzingPSA] = useState(false)
   const [psaError, setPSAError] = useState(null)
+  const [isAnalyzingReadiness, setIsAnalyzingReadiness] = useState(false)
+  const readinessAttemptedForRef = useRef(null)
   const [jobPostingText, setJobPostingText] = useState('')
   const [jobAnalysis, setJobAnalysis] = useState(null)
   const [isEvaluating, setIsEvaluating] = useState(false)
@@ -100,6 +102,28 @@ export default function MenteeView() {
   useEffect(() => {
     loadMentee()
   }, [menteeId])
+
+  useEffect(() => {
+    if (!mentee) return
+    const hasRole = (mentee.roles || []).some(r => r.whatIDid && r.howIDidIt && r.impact)
+    const hasPSA = !!(mentee.passions?.trim() && mentee.strengths?.trim() && mentee.aspirations?.trim())
+    const hasNarrative = !!mentee.generatedNarrative
+    if (!hasRole || !hasPSA || !hasNarrative) return
+
+    const narrativeStamp = mentee.narrativeGeneratedAt
+    const alreadyAnalyzed = mentee.readinessAnalysis?.analyzedAt
+    const isStale = !alreadyAnalyzed || (narrativeStamp && new Date(narrativeStamp) > new Date(alreadyAnalyzed))
+    if (!isStale) return
+
+    if (readinessAttemptedForRef.current === narrativeStamp) return
+    readinessAttemptedForRef.current = narrativeStamp
+
+    setIsAnalyzingReadiness(true)
+    analyzeReadiness(menteeId)
+      .then(result => setMentee(result.mentee))
+      .catch(err => console.error('Background readiness analysis failed:', err))
+      .finally(() => setIsAnalyzingReadiness(false))
+  }, [mentee, menteeId])
 
 
   useEffect(() => {
