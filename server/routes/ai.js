@@ -1282,7 +1282,7 @@ ${mentee.generatedNarrative}`;
 
     const response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 3000,
+      max_tokens: 6000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }]
     });
