@@ -9,6 +9,7 @@ import NarrativeCard from '../components/NarrativeCard'
 import ThemesPanel from '../components/ThemesPanel'
 import MentorComment from '../components/MentorComment'
 import PSAAnalysisPanel from '../components/PSAAnalysisPanel'
+import ReadinessPanel from '../components/ReadinessPanel'
 import { analyzePSA } from '../utils/api'
 import { SaveStatusIndicator, useSaveStatus, useFieldRetry } from '../utils/autosave'
 
@@ -498,6 +499,15 @@ export default function MentorMenteeView() {
                 onUpdate={handleUpdateComment}
                 onDelete={handleDeleteComment}
               />
+            </div>
+          </section>
+        )}
+
+        {/* Where You Stand */}
+        {mentee.readinessAnalysis && (
+          <section>
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+              <ReadinessPanel readinessAnalysis={mentee.readinessAnalysis} isMentorView={true} />
             </div>
           </section>
         )}
