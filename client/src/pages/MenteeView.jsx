@@ -58,6 +58,7 @@ export default function MenteeView() {
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [jobEvalError, setJobEvalError] = useState(null)
   const [activeTab, setActiveTab] = useState(0)
+  const tabButtonRefs = useRef([])
   const [targetRoleInput, setTargetRoleInput] = useState('')
   const [targetRoleIndustry, setTargetRoleIndustry] = useState('')
   const [isAnalyzingTargetRole, setIsAnalyzingTargetRole] = useState(false)
@@ -487,6 +488,11 @@ export default function MenteeView() {
   function handleTabClick(idx) {
     if (tabUnlocked[idx]) {
       setActiveTab(idx)
+      tabButtonRefs.current[idx]?.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'nearest',
+        block: 'nearest'
+      })
     }
   }
 
@@ -560,6 +566,7 @@ export default function MenteeView() {
                 return (
                   <button
                     key={idx}
+                    ref={el => { tabButtonRefs.current[idx] = el }}
                     onClick={() => handleTabClick(idx)}
                     className={`flex items-center gap-1.5 px-3 py-4 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
                       active
