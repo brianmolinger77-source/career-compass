@@ -59,6 +59,9 @@ export default function MenteeView() {
   const [jobEvalError, setJobEvalError] = useState(null)
   const [activeTab, setActiveTab] = useState(0)
   const tabButtonRefs = useRef([])
+  const tabsScrollContainerRef = useRef(null)
+  const [canScrollTabsLeft, setCanScrollTabsLeft] = useState(false)
+  const [canScrollTabsRight, setCanScrollTabsRight] = useState(false)
   const [targetRoleInput, setTargetRoleInput] = useState('')
   const [targetRoleIndustry, setTargetRoleIndustry] = useState('')
   const [isAnalyzingTargetRole, setIsAnalyzingTargetRole] = useState(false)
@@ -135,6 +138,12 @@ export default function MenteeView() {
       sessionPrepRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [showSessionPrep])
+
+  useEffect(() => {
+    updateTabScrollState()
+    window.addEventListener('resize', updateTabScrollState)
+    return () => window.removeEventListener('resize', updateTabScrollState)
+  }, [mentee])
   async function loadMentee() {
     try {
       const auth = await checkAuth()
@@ -496,6 +505,20 @@ export default function MenteeView() {
     }
   }
 
+  function updateTabScrollState() {
+    const el = tabsScrollContainerRef.current
+    if (!el) return
+    setCanScrollTabsLeft(el.scrollLeft > 0)
+    setCanScrollTabsRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }
+
+  function scrollTabsBy(direction) {
+    const el = tabsScrollContainerRef.current
+    if (!el) return
+    const amount = el.clientWidth * 0.7
+    el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' })
+  }
+
   const completedTabs = tabUnlocked.map((unlocked, idx) => {
     if (idx === 0) return roles.length >= 1
     if (idx === 1) return !!mentee.generatedNarrative
@@ -558,39 +581,77 @@ export default function MenteeView() {
       {/* Sticky tab nav */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm no-print">
         <div className="max-w-3xl mx-auto px-4">
-          <div className="flex overflow-x-auto">
-              {TAB_LABELS.map((label, idx) => {
-                const unlocked = tabUnlocked[idx]
-                const completed = completedTabs[idx]
-                const active = activeTab === idx
-                return (
-                  <button
-                    key={idx}
-                    ref={el => { tabButtonRefs.current[idx] = el }}
-                    onClick={() => handleTabClick(idx)}
-                    className={`flex items-center gap-1.5 px-3 py-4 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
-                      active
-                        ? 'border-[#1F4E79] text-[#1F4E79]'
-                        : unlocked
-                        ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                        : 'border-transparent text-gray-300 cursor-not-allowed'
-                    }`}
-                  >
-                    <span className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
-                      active
-                        ? 'bg-[#1F4E79] text-white'
-                        : completed
-                        ? 'bg-green-500 text-white'
-                        : unlocked
-                        ? 'bg-gray-200 text-gray-600'
-                        : 'bg-gray-100 text-gray-300'
-                    }`}>
-                      {completed && !active ? '✓' : idx + 1}
-                    </span>
-                    {label}
-                  </button>
-                )
-              })}
+          <div className="flex items-center">
+            {canScrollTabsLeft && (
+              <button
+                type="button"
+                onClick={() => scrollTabsBy('left')}
+                aria-label="Scroll tabs left"
+                className="flex-shrink-0 w-6 h-6 mr-1 flex items-center justify-center rounded-full border border-gray-300 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-400 shadow-sm"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+            )}
+            <div className="relative flex-1 min-w-0">
+              {canScrollTabsLeft && (
+                <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white to-transparent z-10" />
+              )}
+              <div
+                ref={tabsScrollContainerRef}
+                onScroll={updateTabScrollState}
+                className="flex overflow-x-auto"
+              >
+                {TAB_LABELS.map((label, idx) => {
+                  const unlocked = tabUnlocked[idx]
+                  const completed = completedTabs[idx]
+                  const active = activeTab === idx
+                  return (
+                    <button
+                      key={idx}
+                      ref={el => { tabButtonRefs.current[idx] = el }}
+                      onClick={() => handleTabClick(idx)}
+                      className={`flex items-center gap-1.5 px-3 py-4 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
+                        active
+                          ? 'border-[#1F4E79] text-[#1F4E79]'
+                          : unlocked
+                          ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                          : 'border-transparent text-gray-300 cursor-not-allowed'
+                      }`}
+                    >
+                      <span className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
+                        active
+                          ? 'bg-[#1F4E79] text-white'
+                          : completed
+                          ? 'bg-green-500 text-white'
+                          : unlocked
+                          ? 'bg-gray-200 text-gray-600'
+                          : 'bg-gray-100 text-gray-300'
+                      }`}>
+                        {completed && !active ? '✓' : idx + 1}
+                      </span>
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+              {canScrollTabsRight && (
+                <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white to-transparent z-10" />
+              )}
+            </div>
+            {canScrollTabsRight && (
+              <button
+                type="button"
+                onClick={() => scrollTabsBy('right')}
+                aria-label="Scroll tabs right"
+                className="flex-shrink-0 w-6 h-6 ml-1 flex items-center justify-center rounded-full border border-gray-300 bg-white text-gray-500 hover:text-gray-700 hover:border-gray-400 shadow-sm"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2 px-3 pb-2">
             <span className="text-xs text-gray-400">Step {activeTab + 1} of {TAB_LABELS.length}</span>
