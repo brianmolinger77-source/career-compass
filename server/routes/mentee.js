@@ -135,6 +135,67 @@ router.delete('/:id/roles/:roleId', requireMenteeOrMentor, async (req, res) => {
   }
 });
 
+// ── PATCH /api/mentee/:id/roles/:roleId ───────────────────────────────────────
+// Atomic per-role field update. See THE-125: the old pattern (fetch the whole
+// mentee, splice the patch into a JS copy of the roles array, PUT the whole
+// array back) has a real race — if two roles have pending saves at once,
+// whichever PUT lands last wins and silently drops the other role's edit,
+// because each request's snapshot of the *other* role is stale by the time it
+// writes. That's true whether the snapshot is stale by milliseconds (server
+// re-fetch, THE-124's normal debounced path) or by however long a role sat
+// edited-but-unsaved in another tab (the emergency-flush path this ticket
+// actually reported).
+//
+// This route never reads-then-rewrites sibling roles at all. `arrayFilters` +
+// dotted-path `$set` tells MongoDB to update only the fields on the one
+// matched array element, atomically, at the database layer. Two concurrent
+// PATCHes for two different roles can never collide — each only ever touches
+// its own role's fields, never the array as a whole. A brand new empty role
+// (POST /roles) or a role being deleted (DELETE above) are still whole-document
+// operations, but those are rare, single-shot, user-initiated actions rather
+// than the routine multi-field autosave/flush pattern this route replaces —
+// left as-is rather than folded into this fix to keep scope to what THE-125
+// actually described.
+router.patch('/:id/roles/:roleId', requireMenteeOrMentor, async (req, res) => {
+  try {
+    await mongoose.connection.asPromise();
+    const mentee = await Mentee.findOne({ id: req.params.id });
+    if (!mentee) {
+      return res.status(404).json({ error: 'Mentee not found' });
+    }
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const roleExists = mentee.roles.some(r => r.id === req.params.roleId);
+    if (!roleExists) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+
+    // Never let a patch body overwrite the role's own id.
+    const { id, ...patchFields } = req.body;
+    if (Object.keys(patchFields).length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    const setDoc = { updatedAt: new Date() };
+    for (const [field, value] of Object.entries(patchFields)) {
+      setDoc[`roles.$[role].${field}`] = value;
+    }
+
+    const updated = await Mentee.findOneAndUpdate(
+      { id: req.params.id },
+      { $set: setDoc },
+      { arrayFilters: [{ 'role.id': req.params.roleId }], returnDocument: 'after' }
+    );
+
+    res.json(updated);
+  } catch (err) {
+    console.error('Error updating role:', err);
+    await logError('PATCH /api/mentee/:id/roles/:roleId', 'PATCH', err, req.params.id);
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
 // ── POST /api/mentee/:id/verify-pin ─────────────────────────────────────────
 router.post('/:id/verify-pin', async (req, res) => {
   try {

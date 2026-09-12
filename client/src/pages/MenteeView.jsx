@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { getMentee, updateMentee, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA, analyzeReadiness, analyzeTargetRole, generateTargetRolePattern, deleteTargetRole, generateSessionPrep, verifyPin } from '../utils/api'
+import { getMentee, updateMentee, updateRole, addRole, deleteRole, generateNarrative, evaluateJobPosting, checkAuth, analyzePSA, analyzeReadiness, analyzeTargetRole, generateTargetRolePattern, deleteTargetRole, generateSessionPrep, verifyPin } from '../utils/api'
 import RoleCard from '../components/RoleCard'
 import VennDiagram from '../components/VennDiagram'
 import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirations'
@@ -184,13 +184,13 @@ export default function MenteeView() {
   // pulse the shared header optimistically on the way in/out, but we never call
   // setSaveError() for this path, so a failing field's error can't later be silently
   // erased by an unrelated successful save elsewhere on the page.
+  //
+  // Uses the atomic per-role PATCH (THE-125) — no client- or server-side snapshot
+  // of the roles array is read or rewritten here, so a concurrent save to a
+  // different role can't be silently dropped by this one, or drop this one.
   async function handleRoleUpdate(roleId, patch) {
     setSaving()
-    const currentMentee = await getMentee(menteeId)
-    const updatedRoles = (currentMentee.roles || []).map(r =>
-      r.id === roleId ? { ...r, ...patch } : r
-    )
-    const updated = await updateMentee(menteeId, { roles: updatedRoles })
+    const updated = await updateRole(menteeId, roleId, patch)
     setMentee(updated)
     setSaved()
     return updated
@@ -209,16 +209,16 @@ export default function MenteeView() {
   }
 
   // Fire-and-forget flush for real page teardown (tab close/background), where we
-  // can't wait for a normal request to complete. Merges the patch into the last-known
-  // roles array and sends a single keepalive PUT instead of the usual GET-then-PUT.
-  // Returns the promise (rather than swallowing errors) so RoleCard can fall back to
-  // its normal per-field retry path if the keepalive request itself fails.
+  // can't wait for a normal request to complete. Sends a single keepalive PATCH
+  // scoped to just this role (THE-125) — the old version merged this patch into
+  // the client's last-known copy of the *whole* roles array and PUT that back,
+  // which is exactly how two roles flushing at the same tab-close moment could
+  // silently overwrite one another: neither request's snapshot of the other
+  // role was current. This route never touches sibling roles at all, so that
+  // race is gone, not just narrowed.
   function handleRoleEmergencyFlush(roleId, patch) {
-    const updatedRoles = (mentee.roles || []).map(r =>
-      r.id === roleId ? { ...r, ...patch } : r
-    )
     setSaving()
-    return updateMentee(menteeId, { roles: updatedRoles }, { keepalive: true })
+    return updateRole(menteeId, roleId, patch, { keepalive: true })
       .then(updated => {
         setMentee(updated)
         setSaved()

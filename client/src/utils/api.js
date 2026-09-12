@@ -42,6 +42,18 @@ export function deleteRole(menteeId, roleId) {
   })
 }
 
+// Atomic per-field update for a single role. See THE-125 — this replaces the
+// old GET-whole-mentee-then-PUT-whole-roles-array pattern for role saves,
+// which could silently drop a different role's pending edit if two roles
+// saved at nearly the same moment.
+export function updateRole(menteeId, roleId, patch, options = {}) {
+  return request(`/api/mentee/${menteeId}/roles/${roleId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+    ...options
+  })
+}
+
 export function analyzeRole(menteeId, roleId, whatIDid, howIDidIt, impact, isRevision = false) {
   return request('/api/analyze-role', {
     method: 'POST',
