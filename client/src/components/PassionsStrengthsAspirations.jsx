@@ -112,7 +112,7 @@ export default function PassionsStrengthsAspirations({
 
           {/* Strengths-specific helper line */}
           {section.key === 'strengths' && (
-            <p className="text-xs text-gray-400 italic">
+            <p className="text-xs text-gray-500 italic">
               Each strength should be something someone else recognized in you — not just something you believe about yourself.
             </p>
           )}
@@ -120,6 +120,7 @@ export default function PassionsStrengthsAspirations({
           <textarea
             value={localData[section.key]}
             onChange={e => handleChange(section.key, e.target.value)}
+            aria-label={section.label}
             placeholder={
               section.key === 'strengths'
                 ? "Try starting each strength like this: 'My [supervisor / colleague / teammate] told me I was good at...'\nFor example: 'My supervisor told me I was good at staying calm under pressure and making quick decisions when things went wrong.'"

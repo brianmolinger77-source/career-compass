@@ -62,7 +62,7 @@ export default function ThemesPanel({ themes = [], themesGeneratedAt, onRegenera
             ))}
           </div>
           {themesGeneratedAt && (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-gray-500">
               Generated {formatDate(themesGeneratedAt)}
             </p>
           )}

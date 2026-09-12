@@ -107,7 +107,7 @@ export default function MentorComment({ section, menteeId, comments = [], onAdd,
                   </p>
                   <p className="text-sm text-gray-800 mt-0.5 leading-relaxed">{comment.comment}</p>
                   <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-gray-400">{formatDate(comment.createdAt)}</span>
+                    <span className="text-xs text-gray-500">{formatDate(comment.createdAt)}</span>
                     <button
                       onClick={() => startEdit(comment)}
                       className="text-xs text-[#1F4E79] hover:underline"

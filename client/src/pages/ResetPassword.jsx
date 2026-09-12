@@ -167,7 +167,7 @@ export default function ResetPassword() {
             </>
           )}
 
-          <p className="text-xs text-gray-400 text-center mt-6">
+          <p className="text-xs text-gray-500 text-center mt-6">
             Career Compass &mdash; Military Veterans Career Program
           </p>
         </div>

@@ -240,7 +240,7 @@ export default function MentorMenteeView() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-400 text-sm">Loading mentee document...</div>
+        <div className="text-gray-500 text-sm">Loading mentee document...</div>
       </div>
     )
   }
@@ -286,7 +286,7 @@ export default function MentorMenteeView() {
         )}
       </button>
       {!hasEnoughRoles && (
-        <p className="text-xs text-gray-400">Requires at least 2 roles</p>
+        <p className="text-xs text-gray-500">Requires at least 2 roles</p>
       )}
       {generateError && (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
@@ -383,7 +383,7 @@ export default function MentorMenteeView() {
           </div>
 
           {roles.length === 0 ? (
-            <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-400">
+            <div className="bg-white border border-dashed border-gray-300 rounded-xl p-8 text-center text-gray-500">
               <p className="text-sm">No roles added yet. The mentee needs to fill this in.</p>
             </div>
           ) : (
@@ -532,7 +532,7 @@ export default function MentorMenteeView() {
                       <span className="text-xs font-semibold text-[#1F4E79] bg-blue-100 px-2 py-0.5 rounded">
                         {sectionDisplay}
                       </span>
-                      <span className="text-xs text-gray-400">{formatDate(comment.createdAt)}</span>
+                      <span className="text-xs text-gray-500">{formatDate(comment.createdAt)}</span>
                     </div>
                     <p className="text-sm text-gray-800">{comment.comment}</p>
                   </div>

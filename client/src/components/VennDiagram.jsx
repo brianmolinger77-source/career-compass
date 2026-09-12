@@ -113,7 +113,7 @@ export default function VennDiagram() {
               <span className="font-bold text-sm" style={{ color: textColor }}>
                 {id}
               </span>
-              <span className="ml-auto text-xs text-gray-400" aria-hidden="true">
+              <span className="ml-auto text-xs text-gray-500" aria-hidden="true">
                 {mobileActive === id ? '▲' : 'ⓘ'}
               </span>
             </button>

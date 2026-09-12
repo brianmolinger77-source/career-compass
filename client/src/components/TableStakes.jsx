@@ -105,6 +105,7 @@ export default function TableStakes({
       <textarea
         value={text}
         onChange={e => handleTextChange(e.target.value)}
+        aria-label="Table stakes — your non-negotiables"
         placeholder="Write freely about your non-negotiables here..."
         rows={4}
         className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#1F4E79] focus:border-transparent resize-y"
@@ -140,6 +141,7 @@ export default function TableStakes({
           value={customTag}
           onChange={e => setCustomTag(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomTag() } }}
+          aria-label="Add a custom non-negotiable"
           placeholder="Add your own non-negotiable..."
           className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
         />

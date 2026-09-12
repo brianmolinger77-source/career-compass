@@ -80,7 +80,7 @@ export default function NarrativeCard({
             )}
           </button>
           {narrativeGeneratedAt && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-500">
               Generated {formatDate(narrativeGeneratedAt)}
             </span>
           )}

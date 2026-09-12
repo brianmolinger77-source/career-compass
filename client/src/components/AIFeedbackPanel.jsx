@@ -30,7 +30,7 @@ export default function AIFeedbackPanel({ feedback, lastAnalyzed }) {
           AI Coaching Feedback
         </h4>
         {lastAnalyzed && (
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-gray-500">
             Analyzed {formatDate(lastAnalyzed)}
           </span>
         )}
@@ -88,7 +88,7 @@ export default function AIFeedbackPanel({ feedback, lastAnalyzed }) {
             <ul className="mt-3 space-y-1.5">
               {feedback.missingHow.promptingQuestions.map((q, i) => (
                 <li key={i} className="text-sm text-[#222222] flex items-start gap-2">
-                  <span className="text-gray-400 mt-0.5 shrink-0">•</span>
+                  <span className="text-gray-500 mt-0.5 shrink-0">•</span>
                   <span>{q}</span>
                 </li>
               ))}
@@ -106,7 +106,7 @@ export default function AIFeedbackPanel({ feedback, lastAnalyzed }) {
             <ul className="mt-3 space-y-1.5">
               {feedback.missingImpact.promptingQuestions.map((q, i) => (
                 <li key={i} className="text-sm text-[#222222] flex items-start gap-2">
-                  <span className="text-gray-400 mt-0.5 shrink-0">•</span>
+                  <span className="text-gray-500 mt-0.5 shrink-0">•</span>
                   <span>{q}</span>
                 </li>
               ))}

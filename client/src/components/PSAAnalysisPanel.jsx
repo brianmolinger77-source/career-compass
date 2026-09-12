@@ -24,7 +24,7 @@ export default function PSAAnalysisPanel({ psaAnalysis, isMentorView = false, on
             <h3 className="text-base font-bold text-[#1F4E79]">Passions, Strengths &amp; Aspirations — Cross-Analysis</h3>
           )}
           {analyzedAt && (
-            <p className="text-xs text-gray-400 mt-0.5">Analyzed {formatDate(analyzedAt)}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Analyzed {formatDate(analyzedAt)}</p>
           )}
         </div>
         {isMentorView && onReAnalyze && (

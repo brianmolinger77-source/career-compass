@@ -18,7 +18,7 @@ function ResumeSection({ children }) {
   )
 }
 
-function AutoTextarea({ value, onChange, placeholder, className }) {
+function AutoTextarea({ value, onChange, placeholder, className, ariaLabel }) {
   return (
     <textarea
       ref={el => {
@@ -32,6 +32,7 @@ function AutoTextarea({ value, onChange, placeholder, className }) {
         onChange(e.target.value)
       }}
       placeholder={placeholder}
+      aria-label={ariaLabel}
       className={className}
     />
   )
@@ -265,7 +266,7 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
       {!hasBullets && (
         <div className={isMentorView ? '' : 'no-print'}>
           <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-8 text-center">
-            <p className="text-gray-400 text-sm">
+            <p className="text-gray-500 text-sm">
               {isMentorView
                 ? 'The mentee has not generated their resume yet.'
                 : <>Click <strong>Generate Resume Bullets</strong> to create AI-crafted, civilian-ready bullets for each role.</>
@@ -294,7 +295,7 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
               {localSummary ? (
                 <p className="text-sm text-gray-800 leading-relaxed">{localSummary}</p>
               ) : (
-                <p className="text-sm text-gray-400 italic">
+                <p className="text-sm text-gray-500 italic">
                   {isMentorView
                     ? 'No professional summary generated yet.'
                     : 'No summary yet — click Generate Summary below to create one.'}
@@ -307,7 +308,7 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
                   <button
                     onClick={handleRegenerateSummary}
                     disabled={isRegeneratingSummary}
-                    className="text-xs text-gray-400 hover:text-[#1F4E79] transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    className="text-xs text-gray-500 hover:text-[#1F4E79] transition-colors flex items-center gap-1.5 disabled:opacity-50"
                   >
                     {isRegeneratingSummary
                       ? <><Spinner /> Generating...</>
@@ -358,20 +359,22 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
                       <ul className="space-y-1 mb-2">
                         {bullets.map((bullet, idx) => (
                           <li key={idx} className="flex items-start gap-2 group">
-                            <span className="text-gray-400 mt-0.5 flex-shrink-0 text-xs leading-5">•</span>
+                            <span className="text-gray-500 mt-0.5 flex-shrink-0 text-xs leading-5">•</span>
                             {isMentorView ? (
                               <span className="flex-1 text-sm text-gray-800 leading-relaxed py-0.5">{bullet}</span>
                             ) : (
                               <AutoTextarea
                                 value={bullet}
                                 onChange={v => handleBulletChange(role.id, idx, v)}
+                                ariaLabel={`Bullet ${idx + 1} for ${role.jobTitle || 'this role'}`}
                                 className={bulletTextareaClass}
                               />
                             )}
                             {!isMentorView && (
                               <button
                                 onClick={() => handleRemoveBullet(role.id, idx)}
-                                className="no-print opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity text-xs flex-shrink-0 mt-0.5"
+                                aria-label={`Remove bullet ${idx + 1} for ${role.jobTitle || 'this role'}`}
+                                className="no-print opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-gray-300 hover:text-red-400 transition-opacity text-xs flex-shrink-0 mt-0.5"
                                 title="Remove bullet"
                               >
                                 ✕
@@ -384,7 +387,7 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
                       {!isMentorView && (
                         <button
                           onClick={() => handleAddBullet(role.id)}
-                          className="no-print text-xs text-gray-400 hover:text-[#1F4E79] transition-colors ml-4"
+                          className="no-print text-xs text-gray-500 hover:text-[#1F4E79] transition-colors ml-4"
                         >
                           + Add bullet
                         </button>
@@ -408,7 +411,8 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
                     {!isMentorView && (
                       <button
                         onClick={() => handleRemoveSkill(i)}
-                        className="no-print ml-0.5 text-gray-400 hover:text-red-500 leading-none font-bold"
+                        aria-label={`Remove skill: ${skill}`}
+                        className="no-print ml-0.5 text-gray-500 hover:text-red-500 leading-none font-bold"
                         title="Remove skill"
                       >
                         ×
@@ -426,13 +430,14 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
                     onBlur={() => {
                       if (skillInput.trim()) { commitSkill(skillInput); setSkillInput('') }
                     }}
+                    aria-label="Add a skill"
                     placeholder="+ Add skill"
                     className="no-print text-sm text-gray-500 placeholder-gray-400 border border-dashed border-gray-300 hover:border-[#1F4E79] focus:border-[#1F4E79] focus:outline-none rounded-full px-3 py-1 w-28 transition-colors bg-transparent"
                   />
                 )}
               </div>
               {localSkills.length === 0 && (
-                <p className={`text-xs text-gray-400 italic mt-2 ${isMentorView ? '' : 'no-print'}`}>
+                <p className={`text-xs text-gray-500 italic mt-2 ${isMentorView ? '' : 'no-print'}`}>
                   {isMentorView ? 'No skills added yet.' : 'Type a skill above and press Enter — or generate your career story first to pre-populate from your themes.'}
                 </p>
               )}
@@ -442,20 +447,21 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
             <section>
               <ResumeSection>Certifications &amp; Clearances</ResumeSection>
               {localCerts.length === 0 ? (
-                <p className="text-sm text-gray-400 italic mb-3">
+                <p className="text-sm text-gray-500 italic mb-3">
                   {isMentorView ? 'None added yet.' : 'Add any certifications, licenses, or security clearances relevant to your target role'}
                 </p>
               ) : (
                 <ul className="space-y-1.5 mb-3">
                   {localCerts.map((cert, idx) => (
                     <li key={idx} className="flex items-start gap-2 group">
-                      <span className="text-gray-400 flex-shrink-0 text-xs mt-1">•</span>
+                      <span className="text-gray-500 flex-shrink-0 text-xs mt-1">•</span>
                       {isMentorView ? (
                         <span className="flex-1 text-sm text-gray-800 py-0.5">{cert}</span>
                       ) : (
                         <AutoTextarea
                           value={cert}
                           onChange={v => handleCertChange(idx, v)}
+                          ariaLabel={`Certification ${idx + 1}`}
                           placeholder="e.g. Project Management Professional (PMP), 2023"
                           className={listTextareaClass}
                         />
@@ -463,7 +469,8 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
                       {!isMentorView && (
                         <button
                           onClick={() => handleRemoveCert(idx)}
-                          className="no-print opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity text-xs flex-shrink-0 mt-1"
+                          aria-label={`Remove certification ${idx + 1}`}
+                          className="no-print opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-gray-300 hover:text-red-400 transition-opacity text-xs flex-shrink-0 mt-1"
                           title="Remove"
                         >
                           ✕
@@ -476,7 +483,7 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
               {!isMentorView && (
                 <button
                   onClick={handleAddCert}
-                  className="no-print text-xs text-gray-400 hover:text-[#1F4E79] transition-colors"
+                  className="no-print text-xs text-gray-500 hover:text-[#1F4E79] transition-colors"
                 >
                   + Add certification
                 </button>
@@ -487,20 +494,21 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
             <section>
               <ResumeSection>Education</ResumeSection>
               {localEducation.length === 0 ? (
-                <p className="text-sm text-gray-400 italic mb-3">
+                <p className="text-sm text-gray-500 italic mb-3">
                   {isMentorView ? 'None added yet.' : 'Add your education — degree, institution, and year'}
                 </p>
               ) : (
                 <ul className="space-y-1.5 mb-3">
                   {localEducation.map((edu, idx) => (
                     <li key={idx} className="flex items-start gap-2 group">
-                      <span className="text-gray-400 flex-shrink-0 text-xs mt-1">•</span>
+                      <span className="text-gray-500 flex-shrink-0 text-xs mt-1">•</span>
                       {isMentorView ? (
                         <span className="flex-1 text-sm text-gray-800 py-0.5">{edu}</span>
                       ) : (
                         <AutoTextarea
                           value={edu}
                           onChange={v => handleEduChange(idx, v)}
+                          ariaLabel={`Education entry ${idx + 1}`}
                           placeholder="e.g. B.S. Business Administration, University of Maryland, 2012"
                           className={listTextareaClass}
                         />
@@ -508,7 +516,8 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
                       {!isMentorView && (
                         <button
                           onClick={() => handleRemoveEdu(idx)}
-                          className="no-print opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-opacity text-xs flex-shrink-0 mt-1"
+                          aria-label={`Remove education entry ${idx + 1}`}
+                          className="no-print opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-gray-300 hover:text-red-400 transition-opacity text-xs flex-shrink-0 mt-1"
                           title="Remove"
                         >
                           ✕
@@ -521,7 +530,7 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
               {!isMentorView && (
                 <button
                   onClick={handleAddEdu}
-                  className="no-print text-xs text-gray-400 hover:text-[#1F4E79] transition-colors"
+                  className="no-print text-xs text-gray-500 hover:text-[#1F4E79] transition-colors"
                 >
                   + Add education
                 </button>
@@ -538,7 +547,7 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
             >
               Print Resume / Save PDF
             </button>
-            {!isMentorView && <span className="text-xs text-gray-400">Click any field to edit it</span>}
+            {!isMentorView && <span className="text-xs text-gray-500">Click any field to edit it</span>}
           </div>
         </div>
       )}

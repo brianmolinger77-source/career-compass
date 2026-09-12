@@ -243,7 +243,7 @@ export default function RoleCard({
             <button
               onClick={() => onMoveUp(role.id)}
               title="Move up"
-              className="text-gray-400 hover:text-[#1F4E79] p-1 rounded"
+              className="text-gray-500 hover:text-[#1F4E79] p-1 rounded"
             >
               &#9650;
             </button>
@@ -252,7 +252,7 @@ export default function RoleCard({
             <button
               onClick={() => onMoveDown(role.id)}
               title="Move down"
-              className="text-gray-400 hover:text-[#1F4E79] p-1 rounded"
+              className="text-gray-500 hover:text-[#1F4E79] p-1 rounded"
             >
               &#9660;
             </button>
@@ -308,7 +308,7 @@ export default function RoleCard({
             </div>
 
             {/* Helper prompt text */}
-            <p className="text-xs text-gray-400 italic">{def.placeholder}</p>
+            <p className="text-xs text-gray-500 italic">{def.placeholder}</p>
 
             {/* How I Did It quality bar */}
             {isHowIDidIt && (
@@ -414,7 +414,7 @@ export default function RoleCard({
           className={`text-sm px-4 py-2 rounded-lg transition-colors font-medium ${
             confirmDelete
               ? 'bg-red-100 text-red-700 hover:bg-red-200'
-              : 'text-red-400 hover:text-red-600 hover:bg-red-50'
+              : 'text-red-600 hover:text-red-700 hover:bg-red-50'
           }`}
         >
           {confirmDelete ? 'Click again to confirm delete' : 'Remove Role'}

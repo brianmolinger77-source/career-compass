@@ -389,7 +389,7 @@ export default function MenteeView() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-400 text-sm">Loading your Career Compass...</div>
+        <div className="text-gray-500 text-sm">Loading your Career Compass...</div>
       </div>
     )
   }
@@ -399,7 +399,7 @@ export default function MenteeView() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
@@ -447,7 +447,7 @@ export default function MenteeView() {
   if (!mentee) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-400 text-sm">Loading your Career Compass...</div>
+        <div className="text-gray-500 text-sm">Loading your Career Compass...</div>
       </div>
     )
   }
@@ -612,12 +612,13 @@ export default function MenteeView() {
                       key={idx}
                       ref={el => { tabButtonRefs.current[idx] = el }}
                       onClick={() => handleTabClick(idx)}
+                      aria-disabled={!unlocked}
                       className={`flex items-center gap-1.5 px-3 py-4 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
                         active
                           ? 'border-[#1F4E79] text-[#1F4E79]'
                           : unlocked
                           ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                          : 'border-transparent text-gray-300 cursor-not-allowed'
+                          : 'border-transparent text-gray-500 cursor-not-allowed'
                       }`}
                     >
                       <span className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
@@ -627,11 +628,27 @@ export default function MenteeView() {
                           ? 'bg-green-500 text-white'
                           : unlocked
                           ? 'bg-gray-200 text-gray-600'
-                          : 'bg-gray-100 text-gray-300'
+                          : 'bg-gray-100 text-gray-600'
                       }`}>
                         {completed && !active ? '✓' : idx + 1}
                       </span>
                       {label}
+                      {!unlocked && (
+                        <svg
+                          aria-hidden="true"
+                          className="w-3 h-3 flex-shrink-0"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="5" y="11" width="14" height="9" rx="2" />
+                          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                        </svg>
+                      )}
+                      {!unlocked && <span className="sr-only"> (locked)</span>}
                     </button>
                   )
                 })}
@@ -654,7 +671,7 @@ export default function MenteeView() {
             )}
           </div>
           <div className="flex items-center gap-2 px-3 pb-2">
-            <span className="text-xs text-gray-400">Step {activeTab + 1} of {TAB_LABELS.length}</span>
+            <span className="text-xs text-gray-500">Step {activeTab + 1} of {TAB_LABELS.length}</span>
             <div className="flex-1 bg-gray-100 rounded-full h-1">
               <div
                 className="bg-[#1F4E79] h-1 rounded-full transition-all"
@@ -805,7 +822,7 @@ export default function MenteeView() {
                     )}
                   </button>
                   {!hasEnoughRoles && (
-                    <p className="text-xs text-gray-400">Add at least 2 roles to generate your story</p>
+                    <p className="text-xs text-gray-500">Add at least 2 roles to generate your story</p>
                   )}
                   {generateError && (
                     <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
@@ -955,7 +972,7 @@ export default function MenteeView() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Company or industry <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company or industry <span className="text-gray-500 font-normal">(optional)</span></label>
                   <input
                     type="text"
                     value={targetRoleIndustry}
@@ -1024,7 +1041,7 @@ export default function MenteeView() {
                       </div>
                       <button
                         onClick={() => handleDeleteTargetRole(role.id)}
-                        className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                        className="text-xs text-gray-500 hover:text-red-500 transition-colors"
                       >
                         Remove
                       </button>
@@ -1054,7 +1071,7 @@ export default function MenteeView() {
                     {role.aligns && role.aligns.length > 0 && (
                       <div className="mb-4">
                         <p className="text-xs font-medium text-gray-500 mb-2">Where it lines up</p>
-                        <p className="text-xs text-gray-400 mb-2">Hover over any item to see detail.</p>
+                        <p className="text-xs text-gray-500 mb-2">Hover over any item to see detail.</p>
                         <div className="flex flex-wrap gap-2">
                           {role.aligns.map((item, i) => {
                             const label = typeof item === 'object' ? item.label : item
@@ -1115,7 +1132,7 @@ export default function MenteeView() {
                       </div>
                     )}
 
-                    <p className="text-xs text-gray-400 mt-4">This analysis is based on what's captured in your Career Compass profile. It's a starting point for reflection, not a recommendation.</p>
+                    <p className="text-xs text-gray-500 mt-4">This analysis is based on what's captured in your Career Compass profile. It's a starting point for reflection, not a recommendation.</p>
                   </div>
                 ))}
               </div>
@@ -1123,7 +1140,7 @@ export default function MenteeView() {
 
             {(!mentee.targetRoles || mentee.targetRoles.length === 0) && (
               <div className="text-center py-8">
-                <p className="text-gray-400 text-sm">No target roles added yet. Use the form above to explore roles you're interested in.</p>
+                <p className="text-gray-500 text-sm">No target roles added yet. Use the form above to explore roles you're interested in.</p>
               </div>
             )}
           </section>
@@ -1203,7 +1220,7 @@ export default function MenteeView() {
                 {jobAnalysis.aligns && jobAnalysis.aligns.length > 0 && (
                   <div className="bg-white border border-gray-200 rounded-xl p-5">
                     <h3 className="text-sm font-medium text-gray-800 mb-3">Where it lines up</h3>
-                    <p className="text-xs text-gray-400 mb-3">Hover over any item to see detail.</p>
+                    <p className="text-xs text-gray-500 mb-3">Hover over any item to see detail.</p>
                     <div className="flex flex-wrap gap-2">
                       {jobAnalysis.aligns.map((item, i) => {
                         const label = typeof item === 'object' ? item.label : item
@@ -1245,7 +1262,7 @@ export default function MenteeView() {
                   </div>
                 )}
 
-                <p className="text-xs text-gray-400 text-center pt-2">
+                <p className="text-xs text-gray-500 text-center pt-2">
                   This analysis is based on what's captured in your Career Compass profile. It's a starting point for reflection, not a recommendation.
                 </p>
               </div>
@@ -1334,20 +1351,20 @@ export default function MenteeView() {
                       <div key={idx} className="border border-gray-100 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-sm font-semibold text-gray-800">{item.title}</p>
-                          <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{item.minutes} min</span>
+                          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{item.minutes} min</span>
                         </div>
                         <p className="text-sm text-gray-600 mb-2">{item.description}</p>
                         <p className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2">{item.prepNote}</p>
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-gray-400 text-right mt-2">Total: {sessionPrepAgenda.totalMinutes} minutes</p>
+                  <p className="text-xs text-gray-500 text-right mt-2">Total: {sessionPrepAgenda.totalMinutes} minutes</p>
                 </div>
               )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Key takeaways and next steps</label>
-                <p className="text-xs text-gray-400 mb-3">After your session, capture what you decided and what you're doing next.</p>
+                <p className="text-xs text-gray-500 mb-3">After your session, capture what you decided and what you're doing next.</p>
                 <textarea
                   value={sessionPrepNotes}
                   onChange={e => setSessionPrepNotes(e.target.value)}

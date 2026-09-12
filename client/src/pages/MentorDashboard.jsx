@@ -275,7 +275,7 @@ export default function MentorDashboard() {
             <h2 className="text-xl font-bold text-gray-900 mb-1">Cost &amp; Usage</h2>
             <p className="text-sm text-gray-500 mb-6">AI token usage logged since May 25, 2026. Pricing reflects Anthropic published rates as of May 2026 and should be updated if pricing changes.</p>
 
-            {usageLoading && <div className="text-gray-400 py-8 text-center">Loading usage data...</div>}
+            {usageLoading && <div className="text-gray-500 py-8 text-center">Loading usage data...</div>}
 
             {!usageLoading && usageData && (() => {
               const INPUT_COST_PER_M = 3.00
@@ -347,13 +347,13 @@ export default function MentorDashboard() {
                   </div>
 
                   {/* Pricing note */}
-                  <p className="text-xs text-gray-400">Baseline: $3.00 per 1M input tokens, $15.00 per 1M output tokens (claude-sonnet-4, May 2026). Update PRICING constants in MentorDashboard.jsx when rates change.</p>
+                  <p className="text-xs text-gray-500">Baseline: $3.00 per 1M input tokens, $15.00 per 1M output tokens (claude-sonnet-4, May 2026). Update PRICING constants in MentorDashboard.jsx when rates change.</p>
                 </>
               )
             })()}
 
             {!usageLoading && usageData && usageData.totalCalls === 0 && (
-              <div className="text-center py-12 text-gray-400">No AI calls logged yet. Usage tracking began May 25, 2026.</div>
+              <div className="text-center py-12 text-gray-500">No AI calls logged yet. Usage tracking began May 25, 2026.</div>
             )}
           </div>
         )}
@@ -379,16 +379,16 @@ export default function MentorDashboard() {
 
         {/* Mentee grid */}
         {isLoading ? (
-          <div className="text-center py-16 text-gray-400">Loading mentees...</div>
+          <div className="text-center py-16 text-gray-500">Loading mentees...</div>
         ) : visibleMentees.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-gray-200 shadow-sm">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-gray-700">No mentees yet</h3>
-            <p className="text-gray-400 mt-1 text-sm">Add your first mentee to get started.</p>
+            <p className="text-gray-500 mt-1 text-sm">Add your first mentee to get started.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -423,7 +423,7 @@ export default function MentorDashboard() {
                       {mentee.generatedNarrative ? (
                         <span className="text-green-600 font-semibold">Generated</span>
                       ) : (
-                        <span className="text-gray-400">Not yet</span>
+                        <span className="text-gray-500">Not yet</span>
                       )}
                     </div>
                     {adminView && (
@@ -472,6 +472,7 @@ export default function MentorDashboard() {
                             </button>
                             <button
                               onClick={() => { setPinEditing(null); setPinValue(''); setPinError('') }}
+                              aria-label="Cancel PIN edit"
                               className="text-xs text-gray-500 hover:text-gray-700 px-1"
                             >
                               ✕
@@ -514,6 +515,7 @@ export default function MentorDashboard() {
                           </button>
                           <button
                             onClick={() => { setReassigningId(null); setReassignValue('') }}
+                            aria-label="Cancel reassign"
                             className="text-xs text-gray-500 hover:text-gray-700 px-1"
                           >
                             ✕
@@ -662,7 +664,7 @@ export default function MentorDashboard() {
                     required
                     className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1F4E79]"
                   />
-                  <p className="text-xs text-gray-400 mt-1">Share this PIN directly with your mentee. They will need it to access their page.</p>
+                  <p className="text-xs text-gray-500 mt-1">Share this PIN directly with your mentee. They will need it to access their page.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
