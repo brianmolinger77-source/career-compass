@@ -20,9 +20,13 @@ function formatRoleDates(role, separator = ' - ') {
   if (!start && !end) {
     return 'dates not provided (do not estimate dates or treat this role as current)';
   }
-  const startText = start || 'start year not provided (do not estimate)';
-  const endText = end || 'end year not provided (do not assume this role is current)';
-  return `${startText}${separator}${endText}`;
+  if (start && end) {
+    return `${start}${separator}${end}`;
+  }
+  if (start) {
+    return `started ${start}; end year not provided (do not assume this role is current)`;
+  }
+  return `start year not provided (do not estimate); ended ${end}`;
 }
 
 async function logUsage(endpoint, menteeId, mentorId, usage) {
