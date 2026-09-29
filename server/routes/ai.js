@@ -12,6 +12,19 @@ const MODEL = 'claude-sonnet-4-6';
 const ApiUsageLog = require('../models/ApiUsageLog');
 const { logError } = require('../utils/errorLog');
 
+// Formats a role's date range for AI prompts. A blank date is reported as
+// "not provided" and is never guessed or defaulted to "Present".
+function formatRoleDates(role, separator = ' - ') {
+  const start = (role.startYear || '').toString().trim();
+  const end = (role.endYear || '').toString().trim();
+  if (!start && !end) {
+    return 'dates not provided (do not estimate dates or treat this role as current)';
+  }
+  const startText = start || 'start year not provided (do not estimate)';
+  const endText = end || 'end year not provided (do not assume this role is current)';
+  return `${startText}${separator}${endText}`;
+}
+
 async function logUsage(endpoint, menteeId, mentorId, usage) {
   try {
     await ApiUsageLog.create({
@@ -192,7 +205,7 @@ router.post('/generate-narrative', requireMenteeOrMentor, async (req, res) => {
     }
 
     const rolesText = (mentee.roles || []).map((role, i) => {
-      return `Role ${i + 1}: ${role.title || 'Untitled'} at ${role.organization || 'Unknown Organization'} (${role.startYear || '?'} - ${role.endYear || 'Present'})
+      return `Role ${i + 1}: ${role.title || 'Untitled'} at ${role.organization || 'Unknown Organization'} (${formatRoleDates(role)})
 What I Did: ${role.whatIDid || 'Not provided'}
 How I Did It: ${role.howIDidIt || 'Not provided'}
 The Impact: ${role.impact || 'Not provided'}`;
@@ -438,7 +451,7 @@ router.post('/generate-resume-bullets', requireMenteeOrMentor, async (req, res) 
 Role ID: ${role.id}
 Title: ${role.title || 'Untitled'}
 Organization: ${role.organization || 'Unknown'}
-Years: ${role.startYear || '?'} – ${role.endYear || 'Present'}
+Years: ${formatRoleDates(role, ' – ')}
 What They Did: ${role.whatIDid || 'Not provided'}
 How They Did It: ${role.howIDidIt || 'Not provided'}
 The Impact: ${role.impact || 'Not provided'}
@@ -569,7 +582,7 @@ router.post('/regenerate-summary', requireMenteeOrMentor, async (req, res) => {
     }
 
     const rolesText = (mentee.roles || []).map(role =>
-      `${role.title || 'Untitled'} at ${role.organization || 'Unknown'} (${role.startYear || '?'}–${role.endYear || 'Present'}):
+      `${role.title || 'Untitled'} at ${role.organization || 'Unknown'} (${formatRoleDates(role, '–')}):
 What I Did: ${role.whatIDid || ''}
 How I Did It: ${role.howIDidIt || ''}
 Impact: ${role.impact || ''}`.trim()
@@ -684,7 +697,7 @@ router.post('/evaluate-job-posting', requireMenteeOrMentor, async (req, res) => 
 
     const profileText = `
 CAREER HISTORY:
-${mentee.roles.map((r, i) => `Role ${i + 1}: ${r.title || 'Untitled'} at ${r.organization || 'Unknown'} (${r.startYear || '?'} - ${r.endYear || 'Present'})
+${mentee.roles.map((r, i) => `Role ${i + 1}: ${r.title || 'Untitled'} at ${r.organization || 'Unknown'} (${formatRoleDates(r)})
 What I Did: ${r.whatIDid || 'Not provided'}
 How I Did It: ${r.howIDidIt || 'Not provided'}
 The Impact: ${r.impact || 'Not provided'}`).join('\n\n')}
@@ -846,7 +859,7 @@ router.post('/analyze-target-role', requireMenteeOrMentor, async (req, res) => {
     }
 
     const profileText = `CAREER HISTORY:
-${mentee.roles.map((r, i) => `Role ${i + 1}: ${r.title || 'Untitled'} at ${r.organization || 'Unknown'} (${r.startYear || '?'} - ${r.endYear || 'Present'})
+${mentee.roles.map((r, i) => `Role ${i + 1}: ${r.title || 'Untitled'} at ${r.organization || 'Unknown'} (${formatRoleDates(r)})
 What I Did: ${r.whatIDid || 'Not provided'}
 How I Did It: ${r.howIDidIt || 'Not provided'}
 The Impact: ${r.impact || 'Not provided'}`).join('\n\n')}
@@ -1214,7 +1227,7 @@ router.post('/analyze-readiness', requireMenteeOrMentor, async (req, res) => {
     }
 
     const rolesText = mentee.roles.map((r, i) => {
-      return `Role ${i + 1} (id: ${r.id}): ${r.title || 'Untitled'} at ${r.organization || 'Unknown Organization'} (${r.startYear || '?'} - ${r.endYear || 'Present'})
+      return `Role ${i + 1} (id: ${r.id}): ${r.title || 'Untitled'} at ${r.organization || 'Unknown Organization'} (${formatRoleDates(r)})
 What I Did: ${r.whatIDid || 'Not provided'}
 How I Did It: ${r.howIDidIt || 'Not provided'}
 The Impact: ${r.impact || 'Not provided'}`;

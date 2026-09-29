@@ -340,6 +340,7 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
               <div className="space-y-5">
                 {roles.map(role => {
                   const bullets = localBullets[role.id] || []
+                  const dateText = [role.startYear, role.endYear].map(y => (y || '').trim()).filter(Boolean).join(' – ');
                   return (
                     <div key={role.id}>
                       <div className="flex items-baseline justify-between gap-2 mb-1.5">
@@ -349,9 +350,9 @@ export default function ResumeBuilder({ mentee, onUpdate, isMentorView = false }
                             <span className="text-sm text-gray-600"> &mdash; {role.organization}</span>
                           )}
                         </div>
-                        {(role.startYear || role.endYear) && (
+                        {dateText && (
                           <span className="text-sm text-gray-500 flex-shrink-0">
-                            {role.startYear || '?'} – {role.endYear || 'Present'}
+                            {dateText}
                           </span>
                         )}
                       </div>
