@@ -236,10 +236,10 @@ CRITICAL REQUIREMENTS:
 - When translating a term, only substitute a specific plain-language equivalent if you are highly confident it's accurate. If you're not certain what a term specifically means, describe its general function in plain language rather than inventing a specific expansion. For terms you ARE confident about — unit designations, rank, or military-specific organizational language — actively substitute the plain-language equivalent rather than leaving the original term in place. "Battalion" becomes something like "400-person organization" (use the actual scale already stated in the source material when available). Confidence in what a term means is the reason to translate it, not a reason to leave it untranslated.
 - Understandable and compelling to anyone, regardless of their knowledge of the military
 - 150-200 words — substantive enough to be meaningful, concise enough to hold attention
-- Structure: opening hook → career progression thread → key strengths and themes → forward-looking close
+- Structure: opening hook → career progression thread → key strengths and themes → closing sentence (follow the closing sentence rule below)
 - Conversational and natural — not a resume being read aloud
 - Emphasize transferable skills: leadership, problem-solving, managing complexity, developing people, delivering results under pressure
-- The closing sentence should reflect what kind of role or environment they are seeking, informed by their table stakes and aspirations
+- The closing sentence: if Aspirations is "Not provided", do not state or imply any target role, field, or goal. Close on something the veteran actually said, such as a passion or a table stake, or end on the story itself with no forward-looking claim. If Aspirations is provided, reflect only what it says.
 ${careerThreadText}
 
 STRENGTHS VALIDATION CHECK:
