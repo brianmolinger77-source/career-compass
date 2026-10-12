@@ -11,6 +11,7 @@ const MODEL = 'claude-sonnet-4-6';
 
 const ApiUsageLog = require('../models/ApiUsageLog');
 const { logError } = require('../utils/errorLog');
+const { findGuardFlags, veteranSentenceFor, roleGuardCorpus, summaryGuardCorpus } = require('../utils/resumeGuard');
 
 // Formats a role's date range for AI prompts. A blank date is reported as
 // "not provided" and is never guessed or defaulted to "Present".
@@ -554,17 +555,46 @@ ${psaContext ? `SELF-ASSESSMENT:\n${psaContext}` : ''}`;
     const roleCorpus = role => normSource([role?.whatIDid, role?.howIDidIt, role?.impact].filter(Boolean).join(' '));
     const cleanBullets = {};
     let unverifiedBullets = 0;
+    let guardedBullets = 0;
+    let droppedBullets = 0;
+    let keptForEmptyRole = 0;
     for (const roleId of Object.keys(result.bullets || {})) {
       const role = mentee.roles.find(r => r.id === roleId);
       const corpus = roleCorpus(role);
+      const guardCorpus = roleGuardCorpus(role);
       const items = Array.isArray(result.bullets[roleId]) ? result.bullets[roleId] : [];
-      cleanBullets[roleId] = items
-        .map(item => {
-          if (typeof item === 'string') return item;
-          if (!sourceFound(item?.source, corpus)) unverifiedBullets++;
-          return item?.text;
-        })
-        .filter(t => typeof t === 'string' && t.trim());
+      const kept = [];
+      const droppedTexts = [];
+      for (const item of items) {
+        const isString = typeof item === 'string';
+        if (!isString && !sourceFound(item?.source, corpus)) unverifiedBullets++;
+        const text = isString ? item : item?.text;
+        const source = isString ? '' : item?.source;
+        if (typeof text !== 'string' || !text.trim()) continue;
+        if (findGuardFlags(text, guardCorpus).length === 0) {
+          kept.push(text);
+          continue;
+        }
+        guardedBullets++;
+        const sentence = veteranSentenceFor(source, role);
+        if (sentence) {
+          kept.push(sentence);
+        } else {
+          droppedTexts.push(text);
+          droppedBullets++;
+        }
+      }
+      // Never leave a role with zero bullets because of the guard
+      if (kept.length === 0 && droppedTexts.length > 0) {
+        cleanBullets[roleId] = droppedTexts;
+        keptForEmptyRole++;
+      } else {
+        cleanBullets[roleId] = kept;
+      }
+    }
+    const summaryFlagCount = findGuardFlags(result.summary || '', summaryGuardCorpus(mentee)).length;
+    if (guardedBullets > 0 || droppedBullets > 0 || keptForEmptyRole > 0 || summaryFlagCount > 0) {
+      console.warn(`Resume guard: mentee=${mentee.id} guardedBullets=${guardedBullets} droppedBullets=${droppedBullets} keptForEmptyRole=${keptForEmptyRole} summaryFlagCount=${summaryFlagCount}`);
     }
     const summaryCorpus = normSource([
       ...mentee.roles.map(r => [r.title, r.whatIDid, r.howIDidIt, r.impact].filter(Boolean).join(' ')),
