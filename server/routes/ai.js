@@ -464,25 +464,21 @@ ${jargonContext}
 ---`;
     }).join('\n\n');
 
-    const themesContext = mentee.themes?.length
-      ? `Career themes identified across all roles: ${mentee.themes.join(', ')}`
-      : '';
-
     const systemPrompt = `You are an expert resume writer specializing in helping military veterans translate their service into compelling civilian resumes. You will generate two things: (1) a Professional Summary and (2) resume bullet points for each role.
 
 ── PROFESSIONAL SUMMARY ────────────────────────────────────────────────────────
 Write exactly 3 sentences. No more, no fewer.
 
-Sentence 1 — Professional identity: Lead with their strongest differentiator. Who are they at their best? Do NOT start with "I", "I'm", or "I am". Open with a strong declarative statement about their professional value (e.g. "A proven operations leader who...", "Recognized for...", "Trusted by...").
+Sentence 1 — Professional identity: Lead with their strongest differentiator. Who are they at their best? Do NOT start with "I", "I'm", or "I am". Open with a strong declarative statement about their professional value (e.g. "An operations leader who...", "A logistics specialist who...").
 
-Sentence 2 — Proof: One specific quantified achievement that proves the claim in Sentence 1. If no metrics exist in the source material, name the most concrete and specific thing that changed because of their work.
+Sentence 2 — Proof: One specific quantified achievement that proves the claim in Sentence 1. If no metrics exist in the source material, use the most concrete result the veteran wrote, in their own words. Do not infer one.
 
-Sentence 3 — What they are seeking: A concrete, forward-looking statement about the type of role, contribution, or environment they are targeting.
+Sentence 3 — Direction: If Aspirations is provided, reflect only what it says. If Aspirations is not provided, do not state or imply any target role, field, or goal. Close instead on a strength the veteran wrote, in their own scope.
 
 Quality bar: After reading these 3 sentences, a hiring manager must immediately understand this person's brand and want to learn more. Do NOT retell their career chronologically. Do NOT use generic phrases like "results-driven" or "team player" without specifics. Be direct and specific to this person's actual experience.
 
 ── RESUME BULLETS ──────────────────────────────────────────────────────────────
-For each role provided, generate exactly 3–4 strong bullet points:
+For each role provided, generate 3–4 strong bullet points when the role's text supports them, and fewer when it does not:
 - Start with a strong past-tense action verb (Led, Managed, Developed, Reduced, Delivered, Coordinated, etc.)
 - Quantify impact wherever the source material contains numbers, scale, percentages, or dollar amounts
 - Completely jargon-free — understandable to any civilian hiring manager with zero military knowledge
@@ -490,9 +486,11 @@ For each role provided, generate exactly 3–4 strong bullet points:
 - Do NOT end bullets with a period
 - Prioritize leadership, business impact, and scale over task lists
 - Never use "we" or "our team" — hiring managers need to understand this person's specific contribution and role in the outcome. Attribute every action directly to the veteran. This is not about taking sole credit — it is about clarity.
-- If no metrics exist, describe what specifically changed or was delivered — not just what the veteran did
+- If no metrics exist, describe what changed or was delivered only if the veteran's text says so. Otherwise describe what the veteran did, at their stated scope
 
-VETERAN CONTEXT: This person served in the US military. Their instinct is to credit the team over themselves and to use language only insiders understand. Your job is to surface their individual contribution in plain civilian language. Translate rank, unit designations, and military acronyms into civilian equivalents. "Battalion" becomes "500-person organization." "OIC" becomes "officer in charge." These are examples of confident, well-established expansions. If you encounter a term you are not highly confident about, do not invent a specific expansion — describe its general function in plain language instead. Write for a hiring manager who has never served. Before writing each bullet, also check whether the source material has already been translated by the veteran into flat, generic civilian phrasing that undersells real scope or scale — if so, restore that scope from other details in the role (org size, budget, people led, geographic reach) rather than carrying the flatness into the bullet. Address whichever is actually present in the source text, jargon or flattening, sometimes both.
+GROUNDING: Every fact in a bullet or the summary must come from the veteran's own words. A bullet may use only the text of its own role. Never move a fact, number, strength, or result from one role to another. The Strengths and Aspirations fields may inform only the summary, and are never a source of facts about a role. A strength may appear in a bullet only if that role's own text supports it. Do not add or change any number, size, duration, frequency, or scope. Copy any figure that comes with a unit in the veteran's own words. Do not state a total length of service or career, including vague ones. Do not add a reason, purpose, or result the veteran did not write, and do not use wording stronger than theirs. If a role's text is thin, write fewer bullets, as few as one, instead of adding detail.
+
+VETERAN CONTEXT: This person served in the US military. Their instinct is to credit the team over themselves and to use language only insiders understand. Your job is to surface their individual contribution in plain civilian language. Translate rank, unit designations, and military acronyms into civilian equivalents. "Battalion" becomes "a large unit" unless the veteran stated its size. Never add a headcount the veteran did not write. "OIC" becomes "officer in charge." These are examples of confident, well-established expansions. If you encounter a term you are not highly confident about, do not invent a specific expansion — describe its general function in plain language instead. Write for a hiring manager who has never served. Before writing each bullet, also check whether the source material has already been translated by the veteran into flat, generic civilian phrasing that undersells real scope or scale — if so, restore that scope from other details stated in that same role (org size, budget, people led, geographic reach) rather than carrying the flatness into the bullet. Address whichever is actually present in the source text, jargon or flattening, sometimes both.
 
 Return ONLY valid JSON in this exact format, with no extra text before or after:
 {
@@ -502,13 +500,11 @@ Return ONLY valid JSON in this exact format, with no extra text before or after:
   }
 }
 
-Include every roleId provided. Generate exactly 3–4 bullets per role.`;
+Include every roleId provided. Write 3–4 bullets per role when the role's text supports them, and fewer, as few as one, when it does not.`;
 
     const psaContext = [
-      mentee.passions   ? `Passions: ${mentee.passions}`     : '',
       mentee.strengths  ? `Strengths: ${mentee.strengths}`   : '',
-      mentee.aspirations? `Aspirations: ${mentee.aspirations}`: '',
-      mentee.tableStakes? `Table Stakes: ${mentee.tableStakes}`: '',
+      mentee.aspirations ? `Aspirations: ${mentee.aspirations}` : 'Aspirations: Not provided',
     ].filter(Boolean).join('\n');
 
     const userMessage = `Generate a professional summary and resume bullets for ${mentee.name}.
@@ -517,11 +513,7 @@ ${mentee.militaryBranch ? `Military branch: ${mentee.militaryBranch}\n` : ''}
 CAREER HISTORY:
 ${rolesText}
 
-${themesContext}
-
-${psaContext ? `SELF-ASSESSMENT:\n${psaContext}` : ''}
-
-${mentee.generatedNarrative ? `CAREER NARRATIVE (use as context only — do not copy):\n${mentee.generatedNarrative}` : ''}`;
+${psaContext ? `SELF-ASSESSMENT:\n${psaContext}` : ''}`;
 
     const response = await anthropic.messages.create({
       model: MODEL,
