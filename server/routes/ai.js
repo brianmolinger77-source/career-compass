@@ -11,7 +11,6 @@ const MODEL = 'claude-sonnet-4-6';
 
 const ApiUsageLog = require('../models/ApiUsageLog');
 const { logError } = require('../utils/errorLog');
-const { findGuardFlags, veteranSentenceFor, roleGuardCorpus, summaryGuardCorpus } = require('../utils/resumeGuard');
 
 // Formats a role's date range for AI prompts. A blank date is reported as
 // "not provided" and is never guessed or defaulted to "Present".
@@ -491,19 +490,13 @@ For each role provided, generate 3–4 strong bullet points when the role's text
 
 GROUNDING: Every fact in a bullet or the summary must come from the veteran's own words. A bullet may use only the text of its own role. Never move a fact, number, strength, or result from one role to another. The Strengths and Aspirations fields may inform only the summary, and are never a source of facts about a role. A strength may appear in a bullet only if that role's own text supports it. Do not add or change any number, size, duration, frequency, or scope. Copy any figure that comes with a unit in the veteran's own words. Do not state a total length of service or career, including vague ones. Do not add a reason, purpose, or result the veteran did not write, and do not use wording stronger than theirs. If a role's text is thin, write fewer bullets, as few as one, instead of adding detail. End each bullet where the veteran's text ends. Do not join an action to a purpose or result with words like "to," "so that," "ensuring," "creating," or "through" unless the veteran wrote that connection. Do not turn a stated count into a percentage, rate, or total.
 
-SOURCE CHECK: Every bullet and every summary sentence must come with its source. A bullet's source is the exact words from that role's What They Did, How They Did It, or The Impact that the bullet restates. Copy them letter for letter, with no ellipses. If a bullet draws on more than one part of the role, separate the pieces with " | ". Write the source first, then write the bullet from it. A bullet may say only what its source says. The only words it may add are connecting words such as "and," and plain-language swaps for military terms. Use the same verb the source uses, unless a military term needs a plain swap. If any part of a bullet has no words in its source, delete that part. A summary sentence's source is the exact words, copied letter for letter, from the veteran's role titles, role text, Strengths, or Aspirations that the sentence rests on, with " | " between pieces. Sentence 2 may restate only what its source says.
-
 VETERAN CONTEXT: This person served in the US military. Their instinct is to credit the team over themselves and to use language only insiders understand. Your job is to surface their individual contribution in plain civilian language. Translate rank, unit designations, and military acronyms into civilian equivalents. "Battalion" becomes "a large unit" unless the veteran stated its size. Never add a headcount the veteran did not write. "OIC" becomes "officer in charge." These are examples of confident, well-established expansions. If you encounter a term you are not highly confident about, do not invent a specific expansion — describe its general function in plain language instead. Write for a hiring manager who has never served. Before writing each bullet, also check whether the source material has already been translated by the veteran into flat, generic civilian phrasing that undersells real scope or scale — if so, restore that scope from other details stated in that same role (org size, budget, people led, geographic reach) rather than carrying the flatness into the bullet. Address whichever is actually present in the source text, jargon or flattening, sometimes both.
 
 Return ONLY valid JSON in this exact format, with no extra text before or after:
 {
-  "summarySources": ["exact words for sentence 1", "exact words for sentence 2", "exact words for sentence 3"],
   "summary": "Sentence 1. Sentence 2. Sentence 3.",
   "bullets": {
-    "[roleId]": [
-      { "source": "exact words from the veteran", "text": "bullet 1" },
-      { "source": "exact words from the veteran", "text": "bullet 2" }
-    ]
+    "[roleId]": ["bullet 1", "bullet 2", "bullet 3"]
   }
 }
 
@@ -524,7 +517,7 @@ ${psaContext ? `SELF-ASSESSMENT:\n${psaContext}` : ''}`;
 
     const response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 6000,
+      max_tokens: 4000,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }]
     });
@@ -546,69 +539,8 @@ ${psaContext ? `SELF-ASSESSMENT:\n${psaContext}` : ''}`;
       });
     }
 
-    // THE-155 Stage 2: keep only bullet text; log (never store) sources that cannot be found in the veteran's own words
-    const normSource = s => String(s || '').toLowerCase().replace(/\s+/g, ' ').replace(/[.\s]+$/, '').trim();
-    const sourceFound = (source, corpus) => {
-      const pieces = String(source || '').split('|').map(normSource).filter(Boolean);
-      return pieces.length > 0 && pieces.every(p => corpus.includes(p));
-    };
-    const roleCorpus = role => normSource([role?.whatIDid, role?.howIDidIt, role?.impact].filter(Boolean).join(' '));
-    const cleanBullets = {};
-    let unverifiedBullets = 0;
-    let guardedBullets = 0;
-    let droppedBullets = 0;
-    let keptForEmptyRole = 0;
-    for (const roleId of Object.keys(result.bullets || {})) {
-      const role = mentee.roles.find(r => r.id === roleId);
-      const corpus = roleCorpus(role);
-      const guardCorpus = roleGuardCorpus(role);
-      const items = Array.isArray(result.bullets[roleId]) ? result.bullets[roleId] : [];
-      const kept = [];
-      const droppedTexts = [];
-      for (const item of items) {
-        const isString = typeof item === 'string';
-        if (!isString && !sourceFound(item?.source, corpus)) unverifiedBullets++;
-        const text = isString ? item : item?.text;
-        const source = isString ? '' : item?.source;
-        if (typeof text !== 'string' || !text.trim()) continue;
-        if (findGuardFlags(text, guardCorpus).length === 0) {
-          kept.push(text);
-          continue;
-        }
-        guardedBullets++;
-        const sentence = veteranSentenceFor(source, role);
-        if (sentence) {
-          kept.push(sentence);
-        } else {
-          droppedTexts.push(text);
-          droppedBullets++;
-        }
-      }
-      // Never leave a role with zero bullets because of the guard
-      if (kept.length === 0 && droppedTexts.length > 0) {
-        cleanBullets[roleId] = droppedTexts;
-        keptForEmptyRole++;
-      } else {
-        cleanBullets[roleId] = kept;
-      }
-    }
-    const summaryFlagCount = findGuardFlags(result.summary || '', summaryGuardCorpus(mentee)).length;
-    if (guardedBullets > 0 || droppedBullets > 0 || keptForEmptyRole > 0 || summaryFlagCount > 0) {
-      console.warn(`Resume guard: mentee=${mentee.id} guardedBullets=${guardedBullets} droppedBullets=${droppedBullets} keptForEmptyRole=${keptForEmptyRole} summaryFlagCount=${summaryFlagCount}`);
-    }
-    const summaryCorpus = normSource([
-      ...mentee.roles.map(r => [r.title, r.whatIDid, r.howIDidIt, r.impact].filter(Boolean).join(' ')),
-      mentee.strengths,
-      mentee.aspirations
-    ].filter(Boolean).join(' '));
-    const hasSummarySources = Array.isArray(result.summarySources);
-    const unverifiedSummary = hasSummarySources ? result.summarySources.filter(s => !sourceFound(s, summaryCorpus)).length : 0;
-    if (unverifiedBullets > 0 || unverifiedSummary > 0 || !hasSummarySources) {
-      console.warn(`Resume source check: mentee=${mentee.id} unverifiedBullets=${unverifiedBullets} unverifiedSummarySentences=${unverifiedSummary} summarySourcesMissing=${!hasSummarySources}`);
-    }
-
     const now = new Date();
-    mentee.resumeBullets = cleanBullets;
+    mentee.resumeBullets = result.bullets;
     mentee.resumeSummary = result.summary || '';
     mentee.resumeSkills = mentee.themes || [];
     mentee.resumeGeneratedAt = now;
@@ -617,7 +549,7 @@ ${psaContext ? `SELF-ASSESSMENT:\n${psaContext}` : ''}`;
     await mentee.save();
     await logUsage('generate-resume-bullets', mentee.id, mentee.mentorId, response.usage);
 
-    res.json({ roleBullets: cleanBullets, resumeSummary: result.summary || '', resumeGeneratedAt: now, mentee });
+    res.json({ roleBullets: result.bullets, resumeSummary: result.summary || '', resumeGeneratedAt: now, mentee });
   } catch (err) {
     console.error('Error generating resume bullets:', err);
     await logError('POST /api/generate-resume-bullets', 'POST', err, menteeId);
