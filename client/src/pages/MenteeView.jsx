@@ -147,11 +147,17 @@ export default function MenteeView() {
   async function loadMentee() {
     try {
       const auth = await checkAuth()
+      const data = await getMentee(menteeId)
+      if (data.requiresPin) {
+        setIsMentor(false)
+        setPinVerified(false)
+        setMentee(data)
+        return false
+      }
       if (auth.authenticated) {
         setIsMentor(true)
         setPinVerified(true)
       }
-      const data = await getMentee(menteeId)
       setMentee(data)
       setCareerThread(data.careerThread || '')
       setJobPostingText(data.savedJobPostingText || '')
@@ -159,10 +165,12 @@ export default function MenteeView() {
         if (data.sessionPrepInput) setSessionPrepInput(data.sessionPrepInput)
         if (data.sessionPrepAgenda) setSessionPrepAgenda(data.sessionPrepAgenda)
         if (data.sessionPrepNotes) setSessionPrepNotes(data.sessionPrepNotes)
+      return true
     } catch (err) {
       if (err.message?.includes('not found') || err.message?.includes('404')) {
         setNotFound(true)
       }
+      return false
     } finally {
       setIsLoading(false)
     }
@@ -375,8 +383,13 @@ export default function MenteeView() {
     try {
       const data = await verifyPin(menteeId, pinInput)
       if (data.verified) {
-        setPinVerified(true)
-        loadMentee()
+        setIsLoading(true)
+        const loaded = await loadMentee()
+        if (loaded) {
+          setPinVerified(true)
+        } else {
+          setPinError('Your PIN worked, but the page did not load. Try again in a moment.')
+        }
       } else {
         setPinError('Incorrect PIN. Check with your mentor.')
         setPinInput('')
