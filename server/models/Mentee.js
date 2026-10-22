@@ -77,7 +77,7 @@ const menteeSchema = new mongoose.Schema({
   resumeEducation:      { type: [String], default: [] },
   resumeSummary:        { type: String, default: '' },
   savedJobPostingText: { type: String, default: '' },
-  pin:                  { type: String, default: '' },
+  pin:                  { type: String, default: '', select: false },
   jobAnalyses:          { type: [jobAnalysisSchema], default: [] },
   targetRoles:          { type: [targetRoleSchema], default: [] },
   targetRolePattern:    { type: String, default: '' },
@@ -85,7 +85,7 @@ const menteeSchema = new mongoose.Schema({
   sessionPrepInput:     { type: String, default: '' },
   sessionPrepAgenda:    { type: mongoose.Schema.Types.Mixed, default: null },
   sessionPrepNotes:     { type: String, default: '' },
-  mentorNotes:          { type: String, default: '' }
+  mentorNotes:          { type: String, default: '', select: false }
 }, {
   timestamps: false
 });

@@ -200,7 +200,7 @@ router.patch('/:id/roles/:roleId', requireMenteeOrMentor, async (req, res) => {
 router.post('/:id/verify-pin', async (req, res) => {
   try {
     await mongoose.connection.asPromise();
-    const mentee = await Mentee.findOne({ id: req.params.id });
+    const mentee = await Mentee.findOne({ id: req.params.id }).select('+pin');
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
     }

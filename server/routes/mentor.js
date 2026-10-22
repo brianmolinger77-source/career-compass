@@ -212,7 +212,7 @@ router.get('/mentees', requireMentor, async (req, res) => {
 
     if (req.session.role === 'superuser') {
       const [docs, mentors] = await Promise.all([
-        Mentee.find({}).sort({ createdAt: -1 }),
+        Mentee.find({}).select('+pin +mentorNotes').sort({ createdAt: -1 }),
         Mentor.find({})
       ]);
 
@@ -227,7 +227,7 @@ router.get('/mentees', requireMentor, async (req, res) => {
         return obj;
       });
     } else {
-      mentees = await Mentee.find({ mentorId: req.session.mentorId }).sort({ createdAt: -1 });
+      mentees = await Mentee.find({ mentorId: req.session.mentorId }).select('+pin +mentorNotes').sort({ createdAt: -1 });
     }
 
     res.json(mentees);
