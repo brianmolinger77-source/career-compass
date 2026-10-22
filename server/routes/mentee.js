@@ -36,6 +36,10 @@ router.get('/:id', async (req, res) => {
     if (!mentee) {
       return res.status(404).json({ error: 'Mentee not found' });
     }
+    res.set('Cache-Control', 'private, no-store');
+    if (!isMenteeAuthorized(mentee, req)) {
+      return res.json({ id: mentee.id, requiresPin: true });
+    }
     const data = mentee.toJSON();
     if (!req.session || !req.session.isMentor) {
       delete data.mentorNotes;
