@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { getMentee, updateMentee, updateRole, addRole, deleteRole, generateNarrative, addComment, updateComment, deleteComment } from '../utils/api'
+import { getMentorMentee, updateMentee, updateRole, addRole, deleteRole, generateNarrative, addComment, updateComment, deleteComment } from '../utils/api'
 import RoleCard from '../components/RoleCard'
 import VennDiagram from '../components/VennDiagram'
 import PassionsStrengthsAspirations from '../components/PassionsStrengthsAspirations'
@@ -76,7 +76,7 @@ export default function MentorMenteeView() {
 
   async function loadMentee() {
     try {
-      const data = await getMentee(id)
+      const data = await getMentorMentee(id)
       setMentee(data)
       if (data.psaAnalysis) setPSAAnalysis(data.psaAnalysis)
     } catch (err) {

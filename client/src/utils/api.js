@@ -22,6 +22,10 @@ export function getMentee(id) {
   return request(`/api/mentee/${id}`)
 }
 
+export function getMentorMentee(id) {
+  return request(`/api/mentor/mentee/${id}`)
+}
+
 export function updateMentee(id, data, options = {}) {
   return request(`/api/mentee/${id}`, {
     method: 'PUT',
