@@ -434,6 +434,9 @@ router.put('/mentee/:id/pin', requireMentor, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     mentee.pin = String(pin);
+    mentee.pinFailedAttempts = 0;
+    mentee.pinLockLevel = 0;
+    mentee.pinLockedUntil = null;
     mentee.updatedAt = new Date();
     await mentee.save();
     res.json({ success: true });

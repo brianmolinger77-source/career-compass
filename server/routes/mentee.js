@@ -201,22 +201,58 @@ router.patch('/:id/roles/:roleId', requireMenteeOrMentor, async (req, res) => {
 });
 
 // ── POST /api/mentee/:id/verify-pin ─────────────────────────────────────────
+const PIN_MAX_TRIES = 5
+const PIN_LOCK_MINUTES = [15, 60, 1440]
+
 router.post('/:id/verify-pin', async (req, res) => {
   try {
     await mongoose.connection.asPromise();
-    const mentee = await Mentee.findOne({ id: req.params.id }).select('+pin');
-    if (!mentee) {
-      return res.status(404).json({ error: 'Mentee not found' });
-    }
     const { pin } = req.body;
-    if (!pin) {
-      return res.status(400).json({ error: 'PIN is required' });
+    if (typeof pin !== 'string' || !/^\d{6}$/.test(pin)) {
+      return res.status(400).json({ error: 'A 6-digit PIN is required' });
     }
-    const verified = mentee.pin === String(pin);
+
+    // Count this attempt in the database BEFORE comparing, in one atomic step,
+    // and only when the account is not locked. Parallel guesses cannot all pass.
+    const now = new Date();
+    const counted = await Mentee.findOneAndUpdate(
+      { id: req.params.id, $or: [{ pinLockedUntil: null }, { pinLockedUntil: { $lte: now } }] },
+      { $inc: { pinFailedAttempts: 1 } },
+      { returnDocument: 'after' }
+    ).select('+pin +pinFailedAttempts +pinLockLevel');
+
+    if (!counted) {
+      const existing = await Mentee.findOne({ id: req.params.id }).select('+pinLockedUntil');
+      if (!existing) return res.status(404).json({ error: 'Mentee not found' });
+      const msLeft = existing.pinLockedUntil ? existing.pinLockedUntil.getTime() - now.getTime() : 0;
+      return res.status(429).json({ error: 'locked', locked: true, verified: false, minutesLeft: Math.max(1, Math.ceil(msLeft / 60000)) });
+    }
+
+    const level = Math.min(counted.pinLockLevel || 0, PIN_LOCK_MINUTES.length - 1);
+    const attempts = counted.pinFailedAttempts;
+
+    // Over the limit (parallel guesses that slipped in before the lock was set): refuse without comparing.
+    if (attempts > PIN_MAX_TRIES) {
+      return res.status(429).json({ error: 'locked', locked: true, verified: false, minutesLeft: PIN_LOCK_MINUTES[level] });
+    }
+
+    const verified = typeof counted.pin === 'string' && counted.pin !== '' && counted.pin === pin;
     if (verified) {
-      req.session.verifiedMenteeId = mentee.id;
+      await Mentee.updateOne({ id: counted.id }, { $set: { pinFailedAttempts: 0, pinLockLevel: 0, pinLockedUntil: null } });
+      req.session.verifiedMenteeId = counted.id;
+      return res.json({ verified: true });
     }
-    res.json({ verified });
+
+    if (attempts >= PIN_MAX_TRIES) {
+      const minutes = PIN_LOCK_MINUTES[level];
+      await Mentee.updateOne(
+        { id: counted.id },
+        { $set: { pinLockedUntil: new Date(Date.now() + minutes * 60000), pinFailedAttempts: 0 }, $inc: { pinLockLevel: 1 } }
+      );
+      return res.status(429).json({ error: 'locked', locked: true, verified: false, minutesLeft: minutes });
+    }
+
+    res.json({ verified: false, triesLeft: PIN_MAX_TRIES - attempts, nextLockMinutes: PIN_LOCK_MINUTES[level] });
   } catch (err) {
     console.error('Error verifying PIN:', err);
     await logError('POST /api/mentee/:id/verify-pin', 'POST', err, req.params.id, 'critical');
