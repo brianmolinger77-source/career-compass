@@ -24,6 +24,14 @@ function calcCompletion(mentee) {
   return Math.round((total / max) * 100)
 }
 
+function formatWait(minutes) {
+  const m = Number(minutes)
+  if (!Number.isFinite(m) || m <= 0) return 'a little while'
+  if (m < 60) return `${Math.ceil(m)} minute${Math.ceil(m) === 1 ? '' : 's'}`
+  const h = Math.ceil(m / 60)
+  return `${h} hour${h === 1 ? '' : 's'}`
+}
+
 const TAB_LABELS = [
   'Career History',
   'My Story',
@@ -391,11 +399,21 @@ export default function MenteeView() {
           setPinError('Your PIN worked, but the page did not load. Try again in a moment.')
         }
       } else {
-        setPinError('Incorrect PIN. Check with your mentor.')
+        const left = data.triesLeft
+        if (Number.isFinite(left) && left > 0 && left <= 2) {
+          setPinError(`Incorrect PIN. ${left} ${left === 1 ? 'try' : 'tries'} left before a ${formatWait(data.nextLockMinutes)} wait.`)
+        } else {
+          setPinError('Incorrect PIN. Check with your mentor.')
+        }
         setPinInput('')
       }
     } catch (err) {
-      setPinError('Something went wrong. Try again in a moment.')
+      if (err && err.status === 429) {
+        setPinError(`Too many wrong tries. Ask your mentor to reset your PIN, or try again in ${formatWait(err.data && err.data.minutesLeft)}.`)
+        setPinInput('')
+      } else {
+        setPinError('Something went wrong. Try again in a moment.')
+      }
     }
   }
 
