@@ -21,7 +21,17 @@ export default function MentorLogin() {
       await login(email, password)
       navigate(from, { replace: true })
     } catch (err) {
-      setError('Invalid email or password. Please try again.')
+      if (err && err.status === 429) {
+        const m = Number(err.data && err.data.minutesLeft)
+        const wait = !Number.isFinite(m) || m <= 0
+          ? 'a little while'
+          : m < 60
+            ? `${Math.ceil(m)} minute${Math.ceil(m) === 1 ? '' : 's'}`
+            : `${Math.ceil(m / 60)} hour${Math.ceil(m / 60) === 1 ? '' : 's'}`
+        setError(`Too many wrong tries. Try again in ${wait}, or use Forgot password to unlock your account right away.`)
+      } else {
+        setError('Invalid email or password. Please try again.')
+      }
       setPassword('')
     } finally {
       setIsLoading(false)
