@@ -18,6 +18,9 @@ const mentorSchema = new mongoose.Schema({
   isActive:     { type: Boolean, default: true },
   resetPasswordTokenHash: { type: String, default: null },
   resetPasswordExpiresAt: { type: Date, default: null },
+  loginFailedAttempts: { type: Number, default: 0, select: false },
+  loginLockLevel:      { type: Number, default: 0, select: false },
+  loginLockedUntil:    { type: Date, default: null, select: false },
   createdAt:    { type: Date },
   updatedAt:    { type: Date }
 }, {

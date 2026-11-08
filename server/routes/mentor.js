@@ -45,9 +45,12 @@ function canAccessMentee(mentee, session) {
 
 // ── POST /api/mentor/login ────────────────────────────────────────────────────
 
+const LOGIN_MAX_TRIES = 5
+const LOGIN_LOCK_MINUTES = [15, 60, 1440]
+
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
+  if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
     return res.status(400).json({ error: 'Email and password are required' });
   }
 
@@ -65,24 +68,56 @@ router.post('/login', async (req, res) => {
     if (!connected) {
       return res.status(503).json({ error: 'Server is starting up, please try again in a moment.' });
     }
-    const mentor = await Mentor.findOne({ email: email.toLowerCase().trim() });
-    if (!mentor) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-    if (!mentor.isActive) {
-      return res.status(401).json({ error: 'Account is deactivated' });
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Count this attempt in the database BEFORE comparing the password, in one atomic step,
+    // and only for an active account that is not locked. Parallel guesses cannot all pass.
+    const now = new Date();
+    const counted = await Mentor.findOneAndUpdate(
+      { email: cleanEmail, isActive: true, $or: [{ loginLockedUntil: null }, { loginLockedUntil: { $lte: now } }] },
+      { $inc: { loginFailedAttempts: 1 } },
+      { returnDocument: 'after' }
+    ).select('+loginFailedAttempts +loginLockLevel');
+
+    if (!counted) {
+      const existing = await Mentor.findOne({ email: cleanEmail }).select('+loginLockedUntil');
+      if (!existing) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+      if (!existing.isActive) {
+        return res.status(401).json({ error: 'Account is deactivated' });
+      }
+      const msLeft = existing.loginLockedUntil ? existing.loginLockedUntil.getTime() - now.getTime() : 0;
+      return res.status(429).json({ error: 'locked', locked: true, minutesLeft: Math.max(1, Math.ceil(msLeft / 60000)) });
     }
 
-    const valid = await bcrypt.compare(password, mentor.passwordHash);
-    if (!valid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    const level = Math.min(counted.loginLockLevel || 0, LOGIN_LOCK_MINUTES.length - 1);
+    const attempts = counted.loginFailedAttempts;
+
+    // Over the limit (parallel guesses that slipped in before the lock was set): refuse without comparing.
+    if (attempts > LOGIN_MAX_TRIES) {
+      return res.status(429).json({ error: 'locked', locked: true, minutesLeft: LOGIN_LOCK_MINUTES[level] });
     }
 
-    req.session.isMentor = true;
-    req.session.mentorId = mentor.id;
-    req.session.role = mentor.role;
+    const valid = await bcrypt.compare(password, counted.passwordHash);
+    if (valid) {
+      await Mentor.updateOne({ id: counted.id }, { $set: { loginFailedAttempts: 0, loginLockLevel: 0, loginLockedUntil: null } });
+      req.session.isMentor = true;
+      req.session.mentorId = counted.id;
+      req.session.role = counted.role;
+      return res.json({ success: true, role: counted.role });
+    }
 
-    res.json({ success: true, role: mentor.role });
+    if (attempts >= LOGIN_MAX_TRIES) {
+      const minutes = LOGIN_LOCK_MINUTES[level];
+      await Mentor.updateOne(
+        { id: counted.id },
+        { $set: { loginLockedUntil: new Date(Date.now() + minutes * 60000), loginFailedAttempts: 0 }, $inc: { loginLockLevel: 1 } }
+      );
+      return res.status(429).json({ error: 'locked', locked: true, minutesLeft: minutes });
+    }
+
+    return res.status(401).json({ error: 'Invalid email or password' });
   } catch (err) {
     console.error('Login error:', err);
     await logError('POST /api/mentor/login', 'POST', err, null, 'critical');
@@ -168,6 +203,9 @@ router.post('/reset-password', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
     mentor.passwordHash = passwordHash;
+    mentor.loginFailedAttempts = 0;
+    mentor.loginLockLevel = 0;
+    mentor.loginLockedUntil = null;
     mentor.resetPasswordTokenHash = null;
     mentor.resetPasswordExpiresAt = null;
     mentor.updatedAt = now;
